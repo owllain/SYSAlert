@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { AlertDetailDialog } from '@/components/alert-detail-dialog'
-import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays, Bell, CheckCircle2 } from 'lucide-react'
 
 interface Entity {
   id: string
@@ -31,6 +31,7 @@ interface Alert {
   personIdType: string
   description: string
   financialEntityId: string
+  status: string
   financialEntity: { id: string; name: string; code: string }
   creator: { id: string; name: string; username: string; financialEntity: { name: string } }
   createdAt: string
@@ -97,6 +98,12 @@ export function AlertHistoryView() {
     )
   }, [baseFilteredAlerts, searchQuery])
 
+  // Statistics (based on all monthly alerts before search filter, but after entity/profile filters)
+  const totalPeriod = baseFilteredAlerts.length
+  const economicAffectationCount = baseFilteredAlerts.filter(a => a.economicAffectation).length
+  const victimaCount = baseFilteredAlerts.filter(a => a.profile === 'victima').length
+  const resolvedCount = baseFilteredAlerts.filter(a => a.status === 'resolved').length
+
   const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / PAGE_SIZE))
   const paginatedAlerts = filteredAlerts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -142,6 +149,46 @@ export function AlertHistoryView() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+          <div className="w-10 h-10 rounded-[8px] bg-[#181d26]/10 flex items-center justify-center">
+            <Bell size={20} className="text-[#181d26]" />
+          </div>
+          <div>
+            <p className="text-2xl font-medium text-[#181d26] leading-none">{totalPeriod}</p>
+            <p className="text-xs text-[#41454d] mt-0.5">Total del período</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+          <div className="w-10 h-10 rounded-[8px] bg-[#f5e9d4]/60 flex items-center justify-center">
+            <DollarSign size={20} className="text-[#aa2d00]" />
+          </div>
+          <div>
+            <p className="text-2xl font-medium text-[#181d26] leading-none">{economicAffectationCount}</p>
+            <p className="text-xs text-[#41454d] mt-0.5">Con afectación económica</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+          <div className="w-10 h-10 rounded-[8px] bg-[#0a2e0e]/10 flex items-center justify-center">
+            <ShieldAlert size={20} className="text-[#0a2e0e]" />
+          </div>
+          <div>
+            <p className="text-2xl font-medium text-[#181d26] leading-none">{victimaCount}</p>
+            <p className="text-xs text-[#41454d] mt-0.5">Víctimas</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+          <div className="w-10 h-10 rounded-[8px] bg-[#0a2e0e]/10 flex items-center justify-center">
+            <CheckCircle2 size={20} className="text-[#0a2e0e]" />
+          </div>
+          <div>
+            <p className="text-2xl font-medium text-[#181d26] leading-none">{resolvedCount}</p>
+            <p className="text-xs text-[#41454d] mt-0.5">Resueltas</p>
+          </div>
         </div>
       </div>
 

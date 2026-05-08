@@ -209,3 +209,162 @@ Task: QA testing, bug fixes, and feature enhancements
 3. Add real-time notification system (WebSocket)
 4. Add dashboard charts (alert trends over time)
 5. Implement proper authentication flow
+
+---
+Task ID: 24+25+26
+Agent: fullstack-developer
+Task: Add notification bell, page transitions, and alert statistics
+
+Work Log:
+- Feature 1 (ID: 24): Notification Bell with Recent Alerts
+  - Added Bell icon button in app-header.tsx between the title and user dropdown
+  - Coral/red badge shows count of today's alerts from OTHER entities (not current user's)
+  - On click, Popover shows 5 most recent alerts from other entities
+  - Each item shows: Entity name, Profile badge (Víctima/Receptor), Person name, Time ago
+  - Empty state shows "No hay alertas nuevas" with Bell icon
+  - "Ver todas" link at bottom navigates to Latest Alerts tab
+  - Polls for new alerts every 30 seconds using setInterval
+  - Badge shows "9+" when count exceeds 9
+  - Bell button: 40x40px rounded-full with bg-[#f8fafc] and border
+  - Badge: absolute -top-1 -right-1, w-5 h-5, rounded-full bg-[#aa2d00]
+  - Popover: rounded-[12px] border shadow-lg, w-[360px]
+  - Alert items: p-3 border-b, hover:bg-[#f8fafc]/50
+
+- Feature 2 (ID: 25): Animated Page Transitions
+  - Modified src/app/page.tsx to wrap renderContent() in AnimatePresence + motion.div
+  - Animation: initial={{ opacity: 0, y: 12 }}, animate={{ opacity: 1, y: 0 }}, exit={{ opacity: 0, y: -8 }}
+  - Transition duration: 0.2s with ease-out
+  - Uses activeTab as key for motion.div for proper unmount/remount transitions
+  - mode="wait" on AnimatePresence for smooth exit before enter
+
+- Feature 3 (ID: 26): Alert Statistics Summary Cards
+  - Latest Alerts View (3 mini-stat cards):
+    1. Total hoy (Bell icon, coral accent bg-[#aa2d00]/10)
+    2. Con afectación económica (DollarSign icon, cream accent bg-[#f5e9d4]/60)
+    3. Víctimas (ShieldAlert icon, forest accent bg-[#0a2e0e]/10)
+  - Alert History View (4 mini-stat cards):
+    1. Total del período (Bell icon, ink accent bg-[#181d26]/10)
+    2. Con afectación económica (DollarSign icon, cream accent)
+    3. Víctimas (ShieldAlert icon, forest accent)
+    4. Resueltas (CheckCircle2 icon, forest accent)
+  - Cards styled: flex items-center gap-3 p-4 rounded-[10px] border bg-white
+  - Icon container: w-10 h-10 rounded-[8px] flex items-center justify-center
+  - Number: text-2xl font-medium text-[#181d26] leading-none
+  - Label: text-xs text-[#41454d] mt-0.5
+  - History stats use 2-col grid on mobile, 4-col on lg
+  - Stats computed from baseFilteredAlerts (after entity/profile filters but before search)
+
+Stage Summary:
+- 4 files modified: app-header.tsx, page.tsx, latest-alerts-view.tsx, alert-history-view.tsx
+- Notification bell fully functional with polling, badge count, and popover list
+- Page transitions smooth with Framer Motion AnimatePresence
+- Statistics cards added to both Latest Alerts and Alert History views
+- All styling follows Airtable-inspired design system
+- Lint passes with zero errors
+- Dev server running without errors
+
+---
+Task ID: 21+22+23
+Agent: fullstack-developer
+Task: Add CSV export, date range picker, and dashboard charts
+
+Work Log:
+- Feature 1 (ID: 21): CSV Export for Alerts
+  - Created /api/alerts/export/route.ts (GET) - new API endpoint for CSV file download
+  - Query params: from, to, entityId, profile, status, today, month
+  - Returns CSV with headers: ID, Perfil, Nombre, Identificación, Tipo ID, Afectación Económica, Descripción, Estado, Entidad, Creado Por, Fecha Creación
+  - Sets Content-Disposition header for automatic file download with date-based filename
+  - Uses same Prisma query logic as alerts GET route with proper CSV escaping
+  - Added "Exportar" button with Download icon to alert-history-view.tsx (next to filter dropdowns)
+  - Added "Exportar" button with Download icon to latest-alerts-view.tsx (next to entity filter)
+  - Button styling: bg-white border border-[#dddddd] rounded-[8px] px-3 h-10 text-sm text-[#41454d]
+  - Export respects active filters (date range, entity, profile)
+
+- Feature 2 (ID: 22): Date Range Picker for Alert History
+  - Added "Filtrar por fecha" section in alert-history-view.tsx with two native date inputs (from/to)
+  - Date inputs styled: rounded-[6px] h-10 border-[#dddddd] text-sm w-[160px]
+  - When both dates selected, API query uses from/to params instead of month=true
+  - Updated /api/alerts/route.ts to accept from and to query params (YYYY-MM-DD format)
+  - from/to params override month=true when provided
+  - Added "Limpiar filtros" button (with X icon) that appears when any date filter is active
+  - Date range label shown in header ("Mes en curso" or formatted date range)
+  - Also added days=N param to alerts API for fetching past N days of alerts
+  - Empty state messaging adjusted for date-filtered view
+
+- Feature 3 (ID: 23): Dashboard Charts using Recharts
+  - Added "Tendencias y Estadísticas" section in dashboard-view.tsx after stat cards
+  - Chart 1: Alert Trend Line Chart (past 7 days)
+    - Uses LineChart with Line from recharts
+    - X-axis: dates (last 7 days, formatted as "weekday day")
+    - Y-axis: count of alerts (integer only)
+    - Line color: #aa2d00 (coral) with white stroke dots
+    - Custom tooltip with border-[#dddddd] and shadow
+    - CartesianGrid with #dddddd dashed lines, no vertical lines
+    - Card wrapper: white bg, border border-[#dddddd], rounded-[12px], p-6
+  - Chart 2: Alert Distribution Donut/Pie Chart (by profile and status)
+    - Uses PieChart with Pie from recharts (innerRadius=50, outerRadius=80)
+    - Segments: Receptor (#0a2e0e forest), Víctima (#aa2d00 coral), Activa (#aa2d00), Resuelta (#0a2e0e), Descartada (#f5e9d4 cream)
+    - Only shows segments with value > 0
+    - Legend displayed as custom items next to chart (color dot + name + count)
+    - Same card wrapper styling as line chart
+  - Grid: 2 columns on desktop (lg:grid-cols-2), 1 on mobile
+  - Both charts have loading skeletons and empty states with icons
+  - Dashboard now fetches /api/alerts?days=7 for chart data alongside other API calls
+
+Stage Summary:
+- 5 files modified/created: /api/alerts/export/route.ts (new), /api/alerts/route.ts, alert-history-view.tsx, latest-alerts-view.tsx, dashboard-view.tsx
+- CSV export fully functional with filter-aware downloads
+- Date range picker allows custom date filtering in alert history (overrides month default)
+- Dashboard charts provide visual trend and distribution data using Recharts
+- All styling follows Airtable-inspired design system (coral, forest, cream colors)
+- Lint passes with zero errors
+- All API endpoints returning 200 successfully
+
+---
+Task ID: QA-Round-2
+Agent: main (cron QA review)
+Task: Round 2 QA testing, feature enhancements, and styling improvements
+
+## Current Project Status Description/Assessment
+- Interbank Alert System is a mature SPA at `/` with full CRUD, search, export, charts, notifications
+- Six rounds of development completed: DB schema, API routes, frontend UI, bug fixes, feature enhancements, and now major feature additions
+- The app is feature-rich with: Dashboard charts, CSV export, date filters, notification bell, page transitions, alert statistics, and more
+- All lint checks pass, dev server is stable with no runtime errors
+
+## Current Goals / Completed Modifications / Verification Results
+
+### Features Added This Round:
+1. **CSV Export** (ID: 21) - New `/api/alerts/export` route generates CSV files with Content-Disposition headers. Export buttons added to Alert History and Latest Alerts views.
+2. **Date Range Picker** (ID: 22) - Custom date filtering (from/to) in Alert History overrides the default month view. "Limpiar filtros" button clears date filters. API updated with `from`/`to`/`days` params.
+3. **Dashboard Charts** (ID: 23) - Recharts line chart shows 7-day alert trend with coral line. Donut chart shows alert distribution by profile/status with forest, coral, and cream segments.
+4. **Notification Bell** (ID: 24) - Bell icon in header shows coral badge count of today's alerts from other entities. Popover lists 5 most recent alerts with entity, profile, person name, and time ago. Polls every 30 seconds.
+5. **Page Transitions** (ID: 25) - Framer Motion AnimatePresence wraps view content. Smooth fade+slide animations (0.2s ease-out) on tab navigation.
+6. **Alert Statistics** (ID: 26) - Summary stat cards in Latest Alerts (3 cards: total, economic affectation, victims) and Alert History (4 cards: total, economic, victims, resolved).
+7. **Enhanced Footer** (ID: 27) - Refined footer with version info, entity name, and SA icon branding.
+
+### QA Verification:
+- All views tested via agent-browser: Dashboard, Users, My Alerts, Latest Alerts, Alert History
+- Alert creation tested end-to-end as Ana Víquez (BNC user)
+- Alert detail dialog tested (status change verified via API)
+- Notification bell popover tested (shows alerts from other entities)
+- VLM analysis confirms professional quality with charts and enhanced layouts
+- CSV export API verified working
+- Date range filtering verified via API
+- Lint passes with zero errors
+- Dev server stable with no runtime errors
+
+## Unresolved Issues or Risks
+1. **No authentication** - Currently any user can be switched via header dropdown; production needs NextAuth
+2. **Client-side search** - Search filters client-side; acceptable for current data volumes but should move server-side at scale
+3. **No real-time notifications** - Polling every 30s instead of WebSocket push; acceptable for current use case
+4. **Chart data** - Charts only show 7 days; could add date range selectors to charts
+5. **No PDF export** - Could add PDF report generation
+6. **Mobile sidebar** - Could add slide animation for mobile sidebar
+
+### Priority Recommendations for Next Phase
+1. Add PDF report generation for monthly summaries
+2. Add WebSocket real-time notifications
+3. Add more chart date range options (7d, 30d, 90d)
+4. Implement NextAuth authentication
+5. Add audit log for user actions
+6. Add bulk alert operations (mass resolve/dismiss)

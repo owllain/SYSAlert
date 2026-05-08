@@ -15,9 +15,20 @@ import {
   FileText,
   Clock,
   Building2,
-  Minus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
 
 interface DashboardStats {
   totalUsers: number
@@ -44,6 +55,18 @@ interface EntityBreakdown {
   color: string
 }
 
+interface TrendData {
+  date: string
+  label: string
+  count: number
+}
+
+interface DistributionData {
+  name: string
+  value: number
+  color: string
+}
+
 const entityColors: Record<string, string> = {
   BP: '#aa2d00',
   BCR: '#0a2e0e',
@@ -62,18 +85,21 @@ export function DashboardView() {
   const [lastMonthAlerts, setLastMonthAlerts] = useState(0)
   const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([])
   const [entityBreakdown, setEntityBreakdown] = useState<EntityBreakdown[]>([])
+  const [trendData, setTrendData] = useState<TrendData[]>([])
+  const [distributionData, setDistributionData] = useState<DistributionData[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [usersRes, todayRes, monthRes, activeRes, allAlertsRes, entitiesRes] = await Promise.all([
+        const [usersRes, todayRes, monthRes, activeRes, allAlertsRes, entitiesRes, trendRes] = await Promise.all([
           fetch('/api/users'),
           fetch('/api/alerts?today=true'),
           fetch('/api/alerts?month=true'),
           fetch('/api/alerts'),
           fetch('/api/alerts'),
           fetch('/api/entities'),
+          fetch('/api/alerts?days=7'),
         ])
         const users = await usersRes.json()
         const today = await todayRes.json()
@@ -81,10 +107,12 @@ export function DashboardView() {
         const all = await activeRes.json()
         const allAlerts = await allAlertsRes.json()
         const entities = await entitiesRes.json()
+        const trend = await trendRes.json()
 
         const allAlertsArray = Array.isArray(allAlerts) ? allAlerts : []
         const todayArray = Array.isArray(today) ? today : []
         const monthArray = Array.isArray(month) ? month : []
+        const trendArray = Array.isArray(trend) ? trend : []
 
         setStats({
           totalUsers: Array.isArray(users) ? users.length : 0,
@@ -128,6 +156,41 @@ export function DashboardView() {
           }))
           setEntityBreakdown(breakdown)
         }
+
+        // Trend data: daily alert count for past 7 days
+        const days: TrendData[] = []
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date()
+          d.setDate(d.getDate() - i)
+          d.setHours(0, 0, 0, 0)
+          const dEnd = new Date(d)
+          dEnd.setHours(23, 59, 59, 999)
+          const count = trendArray.filter((a: { createdAt: string }) => {
+            const ad = new Date(a.createdAt)
+            return ad >= d && ad <= dEnd
+          }).length
+          days.push({
+            date: d.toISOString().split('T')[0],
+            label: d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric' }),
+            count,
+          })
+        }
+        setTrendData(days)
+
+        // Distribution data: by profile and status
+        const receptorCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'receptor').length
+        const victimaCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'victima').length
+        const activeCount = allAlertsArray.filter((a: { status: string }) => a.status === 'active').length
+        const resolvedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'resolved').length
+        const dismissedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'dismissed').length
+
+        setDistributionData([
+          { name: 'Receptor', value: receptorCount, color: '#0a2e0e' },
+          { name: 'Víctima', value: victimaCount, color: '#aa2d00' },
+          { name: 'Activa', value: activeCount, color: '#aa2d00' },
+          { name: 'Resuelta', value: resolvedCount, color: '#0a2e0e' },
+          { name: 'Descartada', value: dismissedCount, color: '#f5e9d4' },
+        ].filter(d => d.value > 0))
       } catch (error) {
         console.error('Error fetching stats:', error)
       } finally {
@@ -296,6 +359,141 @@ export function DashboardView() {
             </div>
           )
         })}
+      </div>
+
+      {/* Charts Section - Tendencias y Estadísticas */}
+      <div className="mt-8">
+        <div className="mb-5">
+          <h3 className="text-lg font-medium text-[#181d26]">Tendencias y Estadísticas</h3>
+          <p className="text-xs text-[#41454d] mt-0.5">Visualización de datos de los últimos 7 días</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Line Chart - Alert Trend */}
+          <div className="bg-white border border-[#dddddd] rounded-[12px] p-6">
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-[#181d26]">Tendencia de Alertas</h4>
+              <p className="text-xs text-[#41454d] mt-0.5">Últimos 7 días</p>
+            </div>
+            {loading ? (
+              <div className="h-[220px] flex items-center justify-center">
+                <div className="animate-pulse w-full h-full bg-[#f8fafc] rounded-[8px]" />
+              </div>
+            ) : trendData.every(d => d.count === 0) ? (
+              <div className="h-[220px] flex items-center justify-center">
+                <div className="text-center">
+                  <TrendingUp size={28} className="text-[#dddddd] mx-auto mb-2" />
+                  <p className="text-sm text-[#41454d]">Sin datos suficientes</p>
+                  <p className="text-xs text-[#41454d]/60 mt-1">Los datos aparecerán cuando se registren alertas</p>
+                </div>
+              </div>
+            ) : (
+              <div className="h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#dddddd" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: '#41454d' }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#dddddd' }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: '#41454d' }}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: '1px solid #dddddd',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                      }}
+                      labelStyle={{ color: '#181d26', fontWeight: 500 }}
+                      itemStyle={{ color: '#aa2d00' }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#aa2d00"
+                      strokeWidth={2.5}
+                      dot={{ r: 4, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 }}
+                      name="Alertas"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* Pie Chart - Alert Distribution */}
+          <div className="bg-white border border-[#dddddd] rounded-[12px] p-6">
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-[#181d26]">Distribución de Alertas</h4>
+              <p className="text-xs text-[#41454d] mt-0.5">Por perfil y estado</p>
+            </div>
+            {loading ? (
+              <div className="h-[220px] flex items-center justify-center">
+                <div className="animate-pulse w-full h-full bg-[#f8fafc] rounded-[8px]" />
+              </div>
+            ) : distributionData.length === 0 ? (
+              <div className="h-[220px] flex items-center justify-center">
+                <div className="text-center">
+                  <AlertTriangle size={28} className="text-[#dddddd] mx-auto mb-2" />
+                  <p className="text-sm text-[#41454d]">Sin datos de distribución</p>
+                </div>
+              </div>
+            ) : (
+              <div className="h-[220px] flex items-center">
+                <div className="w-1/2 h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={distributionData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {distributionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#fff',
+                          border: '1px solid #dddddd',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                        }}
+                        itemStyle={{ color: '#181d26' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-1/2 flex flex-col gap-2.5 pl-2">
+                  {distributionData.map((item) => (
+                    <div key={item.name} className="flex items-center gap-2.5">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-xs text-[#41454d] flex-1">{item.name}</span>
+                      <span className="text-xs font-medium text-[#181d26] tabular-nums">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Two Column Layout: Recent Activity + Quick Actions */}

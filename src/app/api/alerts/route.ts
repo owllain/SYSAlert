@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
     const today = searchParams.get('today');
     const month = searchParams.get('month');
     const entityId = searchParams.get('entityId');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const days = searchParams.get('days');
 
     const where: Record<string, unknown> = {};
 
@@ -36,7 +39,28 @@ export async function GET(request: NextRequest) {
       where.financialEntityId = entityId;
     }
 
-    if (today === 'true') {
+    if (from && to) {
+      // Custom date range overrides month/today
+      const startDate = new Date(from);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
+      where.createdAt = {
+        gte: startDate,
+        lte: endDate,
+      };
+    } else if (days) {
+      // Past N days
+      const n = parseInt(days, 10);
+      if (!isNaN(n) && n > 0) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - (n - 1));
+        startDate.setHours(0, 0, 0, 0);
+        where.createdAt = {
+          gte: startDate,
+        };
+      }
+    } else if (today === 'true') {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date();

@@ -9,6 +9,7 @@ import { UsersView } from '@/components/users-view'
 import { MyAlertsView } from '@/components/my-alerts-view'
 import { LatestAlertsView } from '@/components/latest-alerts-view'
 import { AlertHistoryView } from '@/components/alert-history-view'
+import { AnimatePresence, motion } from 'framer-motion'
 
 export default function Home() {
   const { activeTab, currentUser, setCurrentUser, sidebarOpen, setSidebarOpen } = useAppStore()
@@ -147,16 +148,43 @@ export default function Home() {
         <div className="flex-1 flex flex-col min-w-0">
           <AppHeader />
           <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
-            {renderContent()}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-[#dddddd] bg-white py-4 px-6 mt-auto">
-        <p className="text-xs text-[#41454d] text-center">
-          © 2024 Sistema de Alertas Interbancario — Costa Rica. Todos los derechos reservados.
-        </p>
+      <footer className="border-t border-[#dddddd] bg-[#f8fafc] py-5 px-6 mt-auto">
+        <div className="flex items-center justify-between max-w-[1280px] mx-auto">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-[4px] bg-[#181d26] flex items-center justify-center">
+              <span className="text-white text-[8px] font-medium">SA</span>
+            </div>
+            <span className="text-xs text-[#41454d]">
+              Sistema de Alertas Interbancario v1.0
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            {currentUser && (
+              <span className="text-xs text-[#41454d]">
+                {currentUser.financialEntityName}
+              </span>
+            )}
+            <span className="text-xs text-[#9297a0]">
+              © 2026 Costa Rica
+            </span>
+          </div>
+        </div>
       </footer>
     </div>
   )

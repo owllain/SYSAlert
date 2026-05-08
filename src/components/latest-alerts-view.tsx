@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { AlertDetailDialog } from '@/components/alert-detail-dialog'
-import { Search, ShieldAlert, DollarSign, Clock } from 'lucide-react'
+import { Search, DollarSign, Clock, Download } from 'lucide-react'
 
 interface Entity {
   id: string
@@ -100,6 +100,19 @@ export function LatestAlertsView() {
   const truncate = (str: string, len: number) =>
     str.length > len ? str.substring(0, len) + '...' : str
 
+  const handleExport = () => {
+    const params = new URLSearchParams({ today: 'true' })
+    if (filterEntityId !== 'all') params.set('entityId', filterEntityId)
+
+    const url = `/api/alerts/export?${params.toString()}`
+    const link = document.createElement('a')
+    link.href = url
+    link.download = ''
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -108,17 +121,27 @@ export function LatestAlertsView() {
           <p className="text-[#41454d] mt-1">Alertas registradas el día de hoy</p>
         </div>
 
-        <Select value={filterEntityId} onValueChange={setFilterEntityId}>
-          <SelectTrigger className="w-[220px] rounded-[6px] border-[#dddddd] h-10">
-            <SelectValue placeholder="Filtrar por entidad" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las entidades</SelectItem>
-            {entities.map(entity => (
-              <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Select value={filterEntityId} onValueChange={setFilterEntityId}>
+            <SelectTrigger className="w-[220px] rounded-[6px] border-[#dddddd] h-10">
+              <SelectValue placeholder="Filtrar por entidad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las entidades</SelectItem>
+              {entities.map(entity => (
+                <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <button
+            onClick={handleExport}
+            className="bg-white border border-[#dddddd] rounded-[8px] px-3 h-10 text-sm text-[#41454d] flex items-center gap-2 hover:bg-[#f8fafc] transition-colors shrink-0"
+          >
+            <Download size={16} />
+            <span className="hidden sm:inline">Exportar</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}

@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model FinancialEntity {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  users     User[]
+  alerts    Alert[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id               String           @id @default(cuid())
+  name             String
+  username         String           @unique
+  email            String           @unique
+  identification   String
+  idType           String           // "cedula", "dimex", "pasaporte"
+  role             String           @default("analyst") // "admin", "analyst", "viewer"
+  financialEntityId String
+  financialEntity  FinancialEntity  @relation(fields: [financialEntityId], references: [id])
+  alerts           Alert[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Alert {
+  id                String          @id @default(cuid())
+  profile           String          // "receptor", "victima"
+  economicAffectation Boolean
+  personName        String
+  personId          String
+  personIdType      String          // "cedula", "dimex", "pasaporte"
+  description       String
+  status            String          @default("active") // "active", "resolved", "dismissed"
+  createdBy         String
+  creator           User            @relation(fields: [createdBy], references: [id])
+  financialEntityId String
+  financialEntity   FinancialEntity @relation(fields: [financialEntityId], references: [id])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}

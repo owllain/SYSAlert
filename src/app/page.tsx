@@ -1,0 +1,163 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useAppStore, type NavTab } from '@/lib/store'
+import { AppSidebar } from '@/components/app-sidebar'
+import { AppHeader } from '@/components/app-header'
+import { DashboardView } from '@/components/dashboard-view'
+import { UsersView } from '@/components/users-view'
+import { MyAlertsView } from '@/components/my-alerts-view'
+import { LatestAlertsView } from '@/components/latest-alerts-view'
+import { AlertHistoryView } from '@/components/alert-history-view'
+
+export default function Home() {
+  const { activeTab, currentUser, setCurrentUser, sidebarOpen, setSidebarOpen } = useAppStore()
+  const [initialized, setInitialized] = useState(false)
+
+  // Initialize: seed data and set current user
+  useEffect(() => {
+    async function init() {
+      try {
+        // Seed data
+        const seedRes = await fetch('/api/seed')
+        const seedData = await seedRes.json()
+
+        // Check localStorage for saved user
+        const savedUserId = localStorage.getItem('currentUserId')
+
+        if (savedUserId) {
+          const usersRes = await fetch('/api/users')
+          const users = await usersRes.json()
+          const savedUser = Array.isArray(users) ? users.find((u: { id: string }) => u.id === savedUserId) : null
+          if (savedUser) {
+            setCurrentUser({
+              id: savedUser.id,
+              name: savedUser.name,
+              username: savedUser.username,
+              email: savedUser.email,
+              role: savedUser.role,
+              financialEntityId: savedUser.financialEntityId,
+              financialEntityName: savedUser.financialEntity?.name || '',
+            })
+            setInitialized(true)
+            return
+          }
+        }
+
+        // Use default admin user from seed or first available
+        if (seedData.defaultUser) {
+          const u = seedData.defaultUser
+          const usersRes = await fetch('/api/users')
+          const users = await usersRes.json()
+          const defaultUser = Array.isArray(users) ? users.find((us: { id: string }) => us.id === u.id) : null
+
+          setCurrentUser({
+            id: u.id,
+            name: u.name,
+            username: u.username,
+            email: u.email,
+            role: u.role,
+            financialEntityId: u.financialEntityId,
+            financialEntityName: defaultUser?.financialEntity?.name || 'Banco Popular',
+          })
+        } else {
+          const usersRes = await fetch('/api/users')
+          const users = await usersRes.json()
+          if (Array.isArray(users) && users.length > 0) {
+            const firstUser = users[0]
+            setCurrentUser({
+              id: firstUser.id,
+              name: firstUser.name,
+              username: firstUser.username,
+              email: firstUser.email,
+              role: firstUser.role,
+              financialEntityId: firstUser.financialEntityId,
+              financialEntityName: firstUser.financialEntity?.name || '',
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Initialization error:', error)
+      } finally {
+        setInitialized(true)
+      }
+    }
+
+    init()
+  }, [setCurrentUser])
+
+  // Responsive sidebar handling
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false)
+      } else {
+        setSidebarOpen(true)
+      }
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [setSidebarOpen])
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardView />
+      case 'users':
+        return <UsersView />
+      case 'my-alerts':
+        return <MyAlertsView />
+      case 'latest-alerts':
+        return <LatestAlertsView />
+      case 'alert-history':
+        return <AlertHistoryView />
+      default:
+        return <DashboardView />
+    }
+  }
+
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-[10px] bg-[#181d26] flex items-center justify-center animate-pulse">
+            <span className="text-white text-lg font-medium">SA</span>
+          </div>
+          <p className="text-[#41454d] text-sm">Cargando sistema...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-white">
+      <div className="flex flex-1">
+        {/* Sidebar overlay for mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        <AppSidebar />
+
+        {/* Main area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <AppHeader />
+          <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
+            {renderContent()}
+          </main>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-[#dddddd] bg-white py-4 px-6 mt-auto">
+        <p className="text-xs text-[#41454d] text-center">
+          © 2024 Sistema de Alertas Interbancario — Costa Rica. Todos los derechos reservados.
+        </p>
+      </footer>
+    </div>
+  )
+}

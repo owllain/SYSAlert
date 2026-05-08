@@ -19,6 +19,10 @@ interface AppState {
   setCurrentUser: (user: CurrentUser | null) => void
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
+  createAlertOpen: boolean
+  setCreateAlertOpen: (open: boolean) => void
+  searchFocused: boolean
+  setSearchFocused: (focused: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -33,6 +37,10 @@ export const useAppStore = create<AppState>((set) => ({
   },
   sidebarOpen: true,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  createAlertOpen: false,
+  setCreateAlertOpen: (open) => set({ createAlertOpen: open, ...(open ? { activeTab: 'my-alerts' as NavTab } : {}) }),
+  searchFocused: false,
+  setSearchFocused: (focused) => set({ searchFocused: focused }),
 }))
 
 // Helper to get saved user ID from localStorage (client only)

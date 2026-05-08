@@ -100,7 +100,7 @@ export function AppSidebar() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm transition-all duration-150 relative group ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm transition-all duration-200 relative group ${
                   isActive
                     ? 'bg-[#f8fafc] text-[#181d26] font-medium'
                     : 'text-[#41454d] hover:bg-[#f8fafc]/60 hover:text-[#181d26]'
@@ -108,7 +108,7 @@ export function AppSidebar() {
               >
                 {/* Left border indicator for active state */}
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00]" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00] transition-all duration-200" />
                 )}
                 <Icon size={17} className={isActive ? 'text-[#aa2d00]' : 'text-[#41454d]/70 group-hover:text-[#181d26]'} />
                 <span className="flex-1 text-left">{item.label}</span>
@@ -144,7 +144,7 @@ export function AppSidebar() {
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm transition-all duration-150 pl-7 relative group ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm transition-all duration-200 pl-7 relative group ${
                       isActive
                         ? 'bg-[#f8fafc] text-[#181d26] font-medium'
                         : 'text-[#41454d] hover:bg-[#f8fafc]/60 hover:text-[#181d26]'
@@ -152,7 +152,7 @@ export function AppSidebar() {
                   >
                     {/* Left border indicator for active state */}
                     {isActive && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00]" />
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00] transition-all duration-200" />
                     )}
                     <Icon size={16} className={isActive ? 'text-[#aa2d00]' : 'text-[#41454d]/70 group-hover:text-[#181d26]'} />
                     <span className="flex-1 text-left">{item.label}</span>

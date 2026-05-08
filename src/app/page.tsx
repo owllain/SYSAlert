@@ -10,6 +10,7 @@ import { MyAlertsView } from '@/components/my-alerts-view'
 import { LatestAlertsView } from '@/components/latest-alerts-view'
 import { AlertHistoryView } from '@/components/alert-history-view'
 import { AuditLogView } from '@/components/audit-log-view'
+import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
 import { AnimatePresence, motion } from 'framer-motion'
 
 export default function Home() {
@@ -136,6 +137,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      <KeyboardShortcuts />
       <div className="flex flex-1">
         {/* Sidebar overlay for mobile */}
         <div
@@ -165,24 +167,27 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-[#dddddd] bg-[#f8fafc] py-5 px-6 mt-auto">
+      <footer className="border-t border-[#dddddd] bg-[#f8fafc] py-4 px-6 mt-auto">
         <div className="flex items-center justify-between max-w-[1280px] mx-auto">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div className="w-5 h-5 rounded-[4px] bg-[#181d26] flex items-center justify-center">
               <span className="text-white text-[8px] font-medium">SA</span>
             </div>
             <span className="text-xs text-[#41454d]">
-              Sistema de Alertas Interbancario v1.0
+              Sistema de Alertas Interbancario v2.0
+            </span>
+            <span className="text-[#dddddd]">|</span>
+            <span className="text-xs text-[#41454d] hidden sm:inline">
+              {currentUser?.financialEntityName || ''}
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            {currentUser && (
-              <span className="text-xs text-[#41454d]">
-                {currentUser.financialEntityName}
-              </span>
-            )}
+          <div className="flex items-center gap-3">
             <span className="text-xs text-[#9297a0]">
-              © 2026 Costa Rica
+              © {new Date().getFullYear()} Costa Rica
+            </span>
+            <span className="text-[#dddddd] hidden sm:inline">|</span>
+            <span className="text-xs text-[#9297a0] hidden sm:inline">
+              Ctrl+N Nueva Alerta · Ctrl+K Buscar
             </span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,9 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { AlertDetailDialog } from '@/components/alert-detail-dialog'
-import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays, Bell, CheckCircle2, X, CheckCircle, XCircle } from 'lucide-react'
+import { AlertPrintReport } from '@/components/alert-print-report'
+import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays, Bell, CheckCircle2, X, CheckCircle, XCircle, FileText } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
 
@@ -50,7 +52,7 @@ const idTypeLabels: Record<string, string> = {
 const PAGE_SIZE = 10
 
 export function AlertHistoryView() {
-  const { currentUser } = useAppStore()
+  const { currentUser, searchFocused, setSearchFocused } = useAppStore()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [entities, setEntities] = useState<Entity[]>([])
   const [filterEntityId, setFilterEntityId] = useState<string>('all')
@@ -62,6 +64,8 @@ export function AlertHistoryView() {
   const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [showPrintReport, setShowPrintReport] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchEntities = useCallback(async () => {
     try {
@@ -90,6 +94,14 @@ export function AlertHistoryView() {
     fetchEntities()
     fetchAlerts()
   }, [fetchEntities, fetchAlerts])
+
+  // Focus search input when searchFocused is triggered
+  useEffect(() => {
+    if (searchFocused) {
+      searchInputRef.current?.focus()
+      setSearchFocused(false)
+    }
+  }, [searchFocused, setSearchFocused])
 
   const baseFilteredAlerts = alerts
     .filter(a => filterEntityId === 'all' || a.financialEntityId === filterEntityId)
@@ -197,6 +209,14 @@ export function AlertHistoryView() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setShowPrintReport(true)}
+            className="bg-white border border-[#dddddd] rounded-[8px] px-3 h-10 text-sm text-[#41454d] flex items-center gap-2 hover:bg-[#f8fafc] transition-colors shrink-0"
+          >
+            <FileText size={16} />
+            <span className="hidden sm:inline">Informe</span>
+          </button>
+
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-[150px] rounded-[6px] border-[#dddddd] h-10">
               <SelectValue placeholder="Estado" />
@@ -236,7 +256,7 @@ export function AlertHistoryView() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white shadow-sm">
           <div className="w-10 h-10 rounded-[8px] bg-[#181d26]/10 flex items-center justify-center">
             <Bell size={20} className="text-[#181d26]" />
           </div>
@@ -245,7 +265,7 @@ export function AlertHistoryView() {
             <p className="text-xs text-[#41454d] mt-0.5">Total del período</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white shadow-sm">
           <div className="w-10 h-10 rounded-[8px] bg-[#f5e9d4]/60 flex items-center justify-center">
             <DollarSign size={20} className="text-[#aa2d00]" />
           </div>
@@ -254,7 +274,7 @@ export function AlertHistoryView() {
             <p className="text-xs text-[#41454d] mt-0.5">Con afectación económica</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white shadow-sm">
           <div className="w-10 h-10 rounded-[8px] bg-[#0a2e0e]/10 flex items-center justify-center">
             <ShieldAlert size={20} className="text-[#0a2e0e]" />
           </div>
@@ -263,7 +283,7 @@ export function AlertHistoryView() {
             <p className="text-xs text-[#41454d] mt-0.5">Víctimas</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white">
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white shadow-sm">
           <div className="w-10 h-10 rounded-[8px] bg-[#0a2e0e]/10 flex items-center justify-center">
             <CheckCircle2 size={20} className="text-[#0a2e0e]" />
           </div>
@@ -279,6 +299,7 @@ export function AlertHistoryView() {
         <div className="relative max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
           <Input
+            ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nombre o identificación..."
@@ -290,7 +311,7 @@ export function AlertHistoryView() {
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-[#dddddd]">
+            <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
               <TableHead className="w-[40px] px-3">
                 <Checkbox
                   checked={allPageSelected}
@@ -304,23 +325,31 @@ export function AlertHistoryView() {
                   className="rounded-[4px]"
                 />
               </TableHead>
-              <TableHead className="text-[#41454d] font-medium">Entidad</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Perfil</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Persona</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden md:table-cell">Identificación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Afectación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden xl:table-cell">Descripción</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden sm:table-cell">Creada por</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Fecha</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Entidad</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden md:table-cell">Identificación</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Afectación</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden xl:table-cell">Descripción</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Creada por</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Fecha</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-[#41454d]">
-                  Cargando...
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                  <TableCell className="px-3"><Skeleton className="h-4 w-4" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-12" /></TableCell>
+                  <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-36" /></TableCell>
+                  <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                </TableRow>
+              ))
             ) : paginatedAlerts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-20 text-[#41454d]">
@@ -342,10 +371,10 @@ export function AlertHistoryView() {
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedAlerts.map((alert) => (
+              paginatedAlerts.map((alert, idx) => (
                 <TableRow
                   key={alert.id}
-                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors ${selectedIds.has(alert.id) ? 'bg-[#f8fafc]' : ''}`}
+                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors ${selectedIds.has(alert.id) ? 'bg-[#f8fafc]' : idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
                   onClick={() => setDetailAlert(alert)}
                 >
                   <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
@@ -488,6 +517,15 @@ export function AlertHistoryView() {
         onOpenChange={(open) => !open && setDetailAlert(null)}
         alert={detailAlert}
       />
+
+      {showPrintReport && (
+        <AlertPrintReport
+          alerts={baseFilteredAlerts}
+          title="Historial de Alertas"
+          subtitle={`Período: Mes en curso — ${new Date().toLocaleDateString('es-CR', { month: 'long', year: 'numeric' })}`}
+          onClose={() => setShowPrintReport(false)}
+        />
+      )}
     </div>
   )
 }

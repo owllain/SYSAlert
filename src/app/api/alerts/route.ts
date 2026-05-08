@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
     const days = searchParams.get('days');
+    const search = searchParams.get('search');
 
     const where: Record<string, unknown> = {};
 
@@ -37,6 +38,10 @@ export async function GET(request: NextRequest) {
 
     if (entityId) {
       where.financialEntityId = entityId;
+    }
+
+    if (search) {
+      where.personId = search;
     }
 
     if (from && to) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -68,7 +68,7 @@ const statusLabels: Record<string, string> = {
 }
 
 export function MyAlertsView() {
-  const { currentUser } = useAppStore()
+  const { currentUser, createAlertOpen, setCreateAlertOpen, searchFocused, setSearchFocused } = useAppStore()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
@@ -77,6 +77,7 @@ export function MyAlertsView() {
   const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [changingStatus, setChangingStatus] = useState<string | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchAlerts = useCallback(async () => {
     if (!currentUser) return
@@ -94,6 +95,23 @@ export function MyAlertsView() {
   useEffect(() => {
     fetchAlerts()
   }, [fetchAlerts])
+
+  // Open create alert dialog when createAlertOpen is triggered
+  useEffect(() => {
+    if (createAlertOpen) {
+      setEditAlert(null)
+      setFormOpen(true)
+      setCreateAlertOpen(false)
+    }
+  }, [createAlertOpen, setCreateAlertOpen])
+
+  // Focus search input when searchFocused is triggered
+  useEffect(() => {
+    if (searchFocused) {
+      searchInputRef.current?.focus()
+      setSearchFocused(false)
+    }
+  }, [searchFocused, setSearchFocused])
 
   const filteredAlerts = useMemo(() => {
     if (!searchQuery.trim()) return alerts
@@ -173,6 +191,7 @@ export function MyAlertsView() {
         <div className="relative max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
           <Input
+            ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nombre o identificación..."

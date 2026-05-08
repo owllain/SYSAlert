@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore, type NavTab } from '@/lib/store'
+import { useAppStore } from '@/lib/store'
 import {
   Users,
   Bell,
@@ -12,6 +12,9 @@ import {
   Plus,
   UserPlus,
   Shield,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
   FileText,
   Clock,
   Building2,
@@ -75,8 +78,15 @@ const entityColors: Record<string, string> = {
 
 type ChartRange = 7 | 30 | 90
 
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Buenos días'
+  if (hour < 18) return 'Buenas tardes'
+  return 'Buenas noches'
+}
+
 export function DashboardView() {
-  const { setActiveTab, currentUser } = useAppStore()
+  const { setActiveTab, setCreateAlertOpen, currentUser } = useAppStore()
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     todayAlerts: 0,
@@ -90,6 +100,9 @@ export function DashboardView() {
   const [trendData, setTrendData] = useState<TrendData[]>([])
   const [distributionData, setDistributionData] = useState<DistributionData[]>([])
   const [loading, setLoading] = useState(true)
+  const [resolvedAlerts, setResolvedAlerts] = useState(0)
+  const [dismissedAlerts, setDismissedAlerts] = useState(0)
+  const [totalAlerts, setTotalAlerts] = useState(0)
   const [chartRange, setChartRange] = useState<ChartRange>(7)
 
   useEffect(() => {
@@ -117,12 +130,20 @@ export function DashboardView() {
         const monthArray = Array.isArray(month) ? month : []
         const trendArray = Array.isArray(trend) ? trend : []
 
+        const activeCount = Array.isArray(all) ? all.filter((a: { status: string }) => a.status === 'active').length : 0
+        const resolvedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'resolved').length
+        const dismissedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'dismissed').length
+        const totalCount = allAlertsArray.length
+
         setStats({
           totalUsers: Array.isArray(users) ? users.length : 0,
           todayAlerts: todayArray.length,
           monthAlerts: monthArray.length,
-          activeAlerts: Array.isArray(all) ? all.filter((a: { status: string }) => a.status === 'active').length : 0,
+          activeAlerts: activeCount,
         })
+        setResolvedAlerts(resolvedCount)
+        setDismissedAlerts(dismissedCount)
+        setTotalAlerts(totalCount)
 
         // Calculate yesterday's alerts for trend
         const yesterday = new Date()
@@ -196,12 +217,9 @@ export function DashboardView() {
         }
         setTrendData(days)
 
-        // Distribution data: by profile and status
+        // Distribution data: by profile and status (reuse already calculated counts)
         const receptorCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'receptor').length
         const victimaCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'victima').length
-        const activeCount = allAlertsArray.filter((a: { status: string }) => a.status === 'active').length
-        const resolvedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'resolved').length
-        const dismissedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'dismissed').length
 
         setDistributionData([
           { name: 'Receptor', value: receptorCount, color: '#0a2e0e' },
@@ -276,7 +294,7 @@ export function DashboardView() {
       icon: Plus,
       iconColor: 'text-[#aa2d00]',
       iconBg: 'bg-[#aa2d00]/10',
-      tab: 'my-alerts' as NavTab,
+      action: () => setCreateAlertOpen(true),
     },
     {
       label: 'Gestionar Usuarios',
@@ -284,7 +302,7 @@ export function DashboardView() {
       icon: UserPlus,
       iconColor: 'text-[#181d26]',
       iconBg: 'bg-[#181d26]/10',
-      tab: 'users' as NavTab,
+      action: () => setActiveTab('users'),
     },
     {
       label: 'Ver Últimas',
@@ -292,7 +310,7 @@ export function DashboardView() {
       icon: Shield,
       iconColor: 'text-[#0a2e0e]',
       iconBg: 'bg-[#0a2e0e]/10',
-      tab: 'latest-alerts' as NavTab,
+      action: () => setActiveTab('latest-alerts'),
     },
     {
       label: 'Historial',
@@ -300,7 +318,7 @@ export function DashboardView() {
       icon: FileText,
       iconColor: 'text-[#41454d]',
       iconBg: 'bg-[#41454d]/10',
-      tab: 'alert-history' as NavTab,
+      action: () => setActiveTab('alert-history'),
     },
   ]
 
@@ -343,9 +361,16 @@ export function DashboardView() {
       {/* Section Header */}
       <div className="mb-10">
         <h2 className="text-2xl font-medium text-[#181d26]">Dashboard</h2>
-        <p className="text-[#41454d] mt-1 text-sm">Resumen general del sistema de alertas</p>
+        <p className="text-[#41454d] mt-1 text-sm">
+          {getGreeting()}, {currentUser?.name?.split(' ')[0] || 'Usuario'} — Resumen general del sistema de alertas
+        </p>
         <div className="mt-4 h-px bg-[#dddddd]" />
       </div>
+
+      {/* Today Date Header */}
+      <p className="text-xs text-[#41454d] mb-4">
+        {new Date().toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+      </p>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -354,7 +379,7 @@ export function DashboardView() {
           return (
             <div
               key={card.label}
-              className={`${card.bgColor} ${card.textColor} rounded-[12px] p-6 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] relative overflow-hidden`}
+              className={`${card.bgColor} ${card.textColor} rounded-[12px] p-6 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] will-change-transform relative overflow-hidden`}
             >
               {/* Subtle pattern overlay */}
               <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -374,16 +399,76 @@ export function DashboardView() {
                   )}
                 </div>
                 <div className="text-3xl font-medium leading-none mb-1.5">
-                  {loading ? '—' : card.value}
+                  {loading ? (
+                    <div className="h-8 w-16 rounded-[4px] bg-white/20 animate-pulse" />
+                  ) : card.value}
                 </div>
                 <div className={`text-sm ${card.iconColor} font-normal`}>{card.label}</div>
                 {card.trendLabel && card.trend !== 0 && (
                   <div className={`text-xs mt-1 ${card.iconColor} opacity-60`}>{card.trendLabel}</div>
                 )}
+                {/* En vivo badge for Alertas Hoy */}
+                {card.label === 'Alertas Hoy' && (
+                  <span className="flex items-center gap-1 text-xs text-white/70 mt-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    En vivo
+                  </span>
+                )}
               </div>
             </div>
           )
         })}
+      </div>
+
+      {/* Status Breakdown */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+        {/* Card: Active Alerts */}
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
+          <div className="w-10 h-10 rounded-[8px] bg-[#aa2d00]/10 flex items-center justify-center">
+            <ShieldAlert size={20} className="text-[#aa2d00]" />
+          </div>
+          <div>
+            <p className="text-2xl font-medium text-[#181d26] leading-none">{loading ? '—' : stats.activeAlerts}</p>
+            <p className="text-xs text-[#41454d] mt-0.5">Alertas Activas</p>
+          </div>
+          <div className="flex-1 flex items-center justify-end">
+            <div className="w-20 h-2 rounded-full bg-[#f8fafc] overflow-hidden">
+              <div className="h-full bg-[#aa2d00] rounded-full transition-all duration-500" style={{ width: `${totalAlerts > 0 ? (stats.activeAlerts / totalAlerts) * 100 : 0}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Card: Resolved Alerts */}
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
+          <div className="w-10 h-10 rounded-[8px] bg-[#0a2e0e]/10 flex items-center justify-center">
+            <CheckCircle2 size={20} className="text-[#0a2e0e]" />
+          </div>
+          <div>
+            <p className="text-2xl font-medium text-[#181d26] leading-none">{loading ? '—' : resolvedAlerts}</p>
+            <p className="text-xs text-[#41454d] mt-0.5">Resueltas</p>
+          </div>
+          <div className="flex-1 flex items-center justify-end">
+            <div className="w-20 h-2 rounded-full bg-[#f8fafc] overflow-hidden">
+              <div className="h-full bg-[#0a2e0e] rounded-full transition-all duration-500" style={{ width: `${totalAlerts > 0 ? (resolvedAlerts / totalAlerts) * 100 : 0}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Card: Dismissed Alerts */}
+        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
+          <div className="w-10 h-10 rounded-[8px] bg-[#f5e9d4]/60 flex items-center justify-center">
+            <XCircle size={20} className="text-[#41454d]" />
+          </div>
+          <div>
+            <p className="text-2xl font-medium text-[#181d26] leading-none">{loading ? '—' : dismissedAlerts}</p>
+            <p className="text-xs text-[#41454d] mt-0.5">Descartadas</p>
+          </div>
+          <div className="flex-1 flex items-center justify-end">
+            <div className="w-20 h-2 rounded-full bg-[#f8fafc] overflow-hidden">
+              <div className="h-full bg-[#41454d] rounded-full transition-all duration-500" style={{ width: `${totalAlerts > 0 ? (dismissedAlerts / totalAlerts) * 100 : 0}%` }} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Charts Section - Tendencias y Estadísticas */}
@@ -644,8 +729,13 @@ export function DashboardView() {
                 return (
                   <button
                     key={action.label}
-                    onClick={() => setActiveTab(action.tab)}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-[10px] hover:bg-[#f8fafc] transition-all duration-150 group text-left"
+                    onClick={action.action}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-[10px] hover:bg-[#f8fafc] transition-all duration-150 group text-left border-l-2 border-transparent ${
+                      action.label === 'Nueva Alerta' ? 'hover:border-l-[#aa2d00]' :
+                      action.label === 'Gestionar Usuarios' ? 'hover:border-l-[#181d26]' :
+                      action.label === 'Ver Últimas' ? 'hover:border-l-[#0a2e0e]' :
+                      action.label === 'Historial' ? 'hover:border-l-[#41454d]' : ''
+                    }`}
                   >
                     <div className={`${action.iconBg} rounded-[8px] p-2.5 transition-transform group-hover:scale-105`}>
                       <Icon size={18} className={action.iconColor} />

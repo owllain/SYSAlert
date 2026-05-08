@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,7 +56,7 @@ const entityColors: Record<string, string> = {
 }
 
 export function UsersView() {
-  const { currentUser } = useAppStore()
+  const { currentUser, searchFocused, setSearchFocused } = useAppStore()
   const [users, setUsers] = useState<User[]>([])
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,6 +64,7 @@ export function UsersView() {
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deleteUser, setDeleteUser] = useState<User | null>(null)
   const [search, setSearch] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -91,6 +92,14 @@ export function UsersView() {
     fetchUsers()
     fetchEntities()
   }, [fetchUsers, fetchEntities])
+
+  // Focus search input when searchFocused is triggered
+  useEffect(() => {
+    if (searchFocused) {
+      searchInputRef.current?.focus()
+      setSearchFocused(false)
+    }
+  }, [searchFocused, setSearchFocused])
 
   const handleDelete = async () => {
     if (!deleteUser) return
@@ -178,6 +187,7 @@ export function UsersView() {
         <div className="relative max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9297a0]" />
           <Input
+            ref={searchInputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, usuario, correo, ID..."

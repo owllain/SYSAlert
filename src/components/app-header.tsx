@@ -64,7 +64,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export function AppHeader() {
-  const { currentUser, sidebarOpen, setSidebarOpen, setCurrentUser, setActiveTab } = useAppStore()
+  const { currentUser, sidebarOpen, setSidebarOpen, setCurrentUser, setActiveTab, activeTab } = useAppStore()
   const [users, setUsers] = useState<UserOption[]>([])
   const [recentAlerts, setRecentAlerts] = useState<NotificationAlert[]>([])
   const [todayOtherCount, setTodayOtherCount] = useState(0)
@@ -136,8 +136,18 @@ export function AppHeader() {
           <h1 className="text-lg font-medium text-[#181d26] leading-tight">
             Sistema de Alertas Interbancario
           </h1>
-          <p className="text-xs text-[#41454d] leading-tight hidden sm:block">
+          <p className="text-xs text-[#41454d] leading-tight hidden sm:flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#aa2d00]" />
             Plataforma de gestión de alertas entre entidades financieras
+            <span className="text-[#dddddd]">·</span>
+            <span className="text-[#181d26] font-medium">
+              {activeTab === 'dashboard' ? 'Dashboard' :
+               activeTab === 'users' ? 'Usuarios y Permisos' :
+               activeTab === 'audit-log' ? 'Registro de Actividad' :
+               activeTab === 'my-alerts' ? 'Mis Alertas' :
+               activeTab === 'latest-alerts' ? 'Últimas Alertas' :
+               'Historial Alertas'}
+            </span>
           </p>
         </div>
       </div>

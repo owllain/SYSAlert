@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,8 @@ import {
   UserX,
   AlertCircle,
 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAppStore } from '@/lib/store'
 
 interface AuditLogEntry {
   id: string
@@ -138,6 +140,7 @@ function formatDetail(action: string, detailsStr: string): string {
 }
 
 export function AuditLogView() {
+  const { searchFocused, setSearchFocused } = useAppStore()
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -147,6 +150,7 @@ export function AuditLogView() {
   const [filterFrom, setFilterFrom] = useState<string>('')
   const [filterTo, setFilterTo] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -177,6 +181,14 @@ export function AuditLogView() {
   useEffect(() => {
     fetchLogs()
   }, [fetchLogs])
+
+  // Focus search input when searchFocused is triggered
+  useEffect(() => {
+    if (searchFocused) {
+      searchInputRef.current?.focus()
+      setSearchFocused(false)
+    }
+  }, [searchFocused, setSearchFocused])
 
   // Reset page when filters change
   useEffect(() => {
@@ -279,6 +291,7 @@ export function AuditLogView() {
         <div className="relative max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
           <Input
+            ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por usuario, acción o detalle..."
@@ -291,22 +304,27 @@ export function AuditLogView() {
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-[#dddddd]">
-              <TableHead className="text-[#41454d] font-medium">Fecha</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Usuario</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Acción</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Tipo</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Detalle</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Entidad</TableHead>
+            <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Fecha</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Usuario</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Acción</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Tipo</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Detalle</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Entidad</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-[#41454d]">
-                  Cargando...
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                </TableRow>
+              ))
             ) : filteredLogs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-20 text-[#41454d]">
@@ -328,14 +346,14 @@ export function AuditLogView() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredLogs.map((log) => {
+              filteredLogs.map((log, idx) => {
                 const ActionIcon = actionIcons[log.action] || AlertCircle
                 const color = actionColors[log.action] || { bg: 'bg-[#f8fafc]', text: 'text-[#41454d]' }
                 const label = actionLabels[log.action] || log.action
                 return (
                   <TableRow
                     key={log.id}
-                    className="border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/60 transition-colors"
+                    className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/60 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
                   >
                     <TableCell className="text-[#41454d] text-sm whitespace-nowrap">
                       <TooltipProvider>

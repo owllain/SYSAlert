@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,6 +14,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { AlertDetailDialog } from '@/components/alert-detail-dialog'
 import { Search, DollarSign, Clock, Download } from 'lucide-react'
+import { useAppStore } from '@/lib/store'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface Entity {
   id: string
@@ -44,6 +46,7 @@ const idTypeLabels: Record<string, string> = {
 }
 
 export function LatestAlertsView() {
+  const { searchFocused, setSearchFocused } = useAppStore()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [entities, setEntities] = useState<Entity[]>([])
   const [filterEntityId, setFilterEntityId] = useState<string>('all')
@@ -51,6 +54,7 @@ export function LatestAlertsView() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchEntities = useCallback(async () => {
     try {
@@ -79,6 +83,14 @@ export function LatestAlertsView() {
     fetchEntities()
     fetchAlerts()
   }, [fetchEntities, fetchAlerts])
+
+  // Focus search input when searchFocused is triggered
+  useEffect(() => {
+    if (searchFocused) {
+      searchInputRef.current?.focus()
+      setSearchFocused(false)
+    }
+  }, [searchFocused, setSearchFocused])
 
   const entityFilteredAlerts = filterEntityId === 'all'
     ? alerts
@@ -168,6 +180,7 @@ export function LatestAlertsView() {
         <div className="relative max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
           <Input
+            ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nombre o identificación..."
@@ -179,24 +192,31 @@ export function LatestAlertsView() {
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-[#dddddd]">
-              <TableHead className="text-[#41454d] font-medium">Entidad</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Perfil</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Persona</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden md:table-cell">Identificación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Afectación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden xl:table-cell">Descripción</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden sm:table-cell">Creada por</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Hora</TableHead>
+            <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Entidad</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden md:table-cell">Identificación</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Afectación</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden xl:table-cell">Descripción</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Creada por</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Hora</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-[#41454d]">
-                  Cargando...
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-12" /></TableCell>
+                  <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-36" /></TableCell>
+                  <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                </TableRow>
+              ))
             ) : filteredAlerts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-20 text-[#41454d]">
@@ -218,10 +238,10 @@ export function LatestAlertsView() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAlerts.map((alert) => (
+              filteredAlerts.map((alert, idx) => (
                 <TableRow
                   key={alert.id}
-                  className="border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors"
+                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
                   onClick={() => setDetailAlert(alert)}
                 >
                   <TableCell className="text-[#41454d] text-sm">{alert.financialEntity?.name || '—'}</TableCell>

@@ -157,3 +157,22 @@
   border: 1px solid #dddddd !important;
   font-family: var(--font-inter), sans-serif !important;
 }
+
+/* Print styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  /* The print report overlay and its children should be visible */
+  .fixed.inset-0,
+  .fixed.inset-0 * {
+    visibility: visible;
+  }
+  /* Hide sidebar, header, footer */
+  aside, header, footer {
+    display: none !important;
+  }
+}

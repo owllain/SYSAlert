@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
 import {
   User,
   CreditCard,
@@ -22,6 +23,9 @@ import {
   XCircle,
   ArrowRight,
   DollarSign,
+  MessageSquare,
+  Send,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
@@ -40,6 +44,16 @@ interface Alert {
   financialEntityId: string
   financialEntity: { id: string; name: string; code: string }
   creator: { id: string; name: string; username: string; financialEntity: { name: string } }
+  createdAt: string
+  updatedAt: string
+}
+
+interface Note {
+  id: string
+  content: string
+  alertId: string
+  userId: string
+  user: { id: string; name: string; username: string; financialEntity: { name: string } }
   createdAt: string
   updatedAt: string
 }
@@ -63,11 +77,94 @@ const statusLabels: Record<string, string> = {
   dismissed: 'Descartada',
 }
 
+function formatRelativeTime(dateStr: string): string {
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Ahora mismo'
+  if (diffMins < 60) return `Hace ${diffMins} min`
+  if (diffHours < 24) return `Hace ${diffHours}h`
+  if (diffDays < 7) return `Hace ${diffDays}d`
+  return date.toLocaleDateString('es-CR', { day: '2-digit', month: 'short' })
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase()
+}
+
 export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }: AlertDetailDialogProps) {
   const [changingStatus, setChangingStatus] = useState(false)
   const { currentUser } = useAppStore()
 
-  if (!alert) return null
+  // Notes state
+  const [notes, setNotes] = useState<Note[]>([])
+  const [noteContent, setNoteContent] = useState('')
+  const [loadingNotes, setLoadingNotes] = useState(false)
+  const [submittingNote, setSubmittingNote] = useState(false)
+
+  const fetchNotes = useCallback(async (alertId: string) => {
+    setLoadingNotes(true)
+    try {
+      const res = await fetch(`/api/notes?alertId=${alertId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setNotes(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching notes:', error)
+    } finally {
+      setLoadingNotes(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open && alert?.id) {
+      fetchNotes(alert.id)
+      setNoteContent('')
+    }
+    if (!open) {
+      setNotes([])
+      setNoteContent('')
+    }
+  }, [open, alert?.id, fetchNotes])
+
+  const handleAddNote = async () => {
+    if (!noteContent.trim() || !alert?.id || !currentUser?.id) return
+    setSubmittingNote(true)
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: noteContent.trim(),
+          alertId: alert.id,
+          userId: currentUser.id,
+        }),
+      })
+      if (res.ok) {
+        const newNote = await res.json()
+        setNotes(prev => [newNote, ...prev])
+        setNoteContent('')
+        toast.success('Nota agregada correctamente')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Error al agregar nota')
+      }
+    } catch {
+      toast.error('Error al agregar nota')
+    } finally {
+      setSubmittingNote(false)
+    }
+  }
 
   const handleStatusChange = async (newStatus: 'resolved' | 'dismissed' | 'active') => {
     setChangingStatus(true)
@@ -103,6 +200,23 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
     })
   }
 
+  if (!alert) return null
+
+  const canAddNote = currentUser?.role === 'admin' || currentUser?.role === 'analyst'
+
+  // Severity logic
+  const severity = alert.profile === 'victima' && alert.economicAffectation
+    ? 'high'
+    : alert.profile === 'victima' || alert.economicAffectation
+    ? 'medium'
+    : 'low'
+
+  const severityConfig = {
+    high: { label: 'Alta', dot: 'bg-[#aa2d00]', bg: 'bg-[#aa2d00]/10', text: 'text-[#aa2d00]' },
+    medium: { label: 'Media', dot: 'bg-[#f5e9d4]', bg: 'bg-[#f5e9d4]/60', text: 'text-[#181d26]' },
+    low: { label: 'Baja', dot: 'bg-[#0a2e0e]', bg: 'bg-[#0a2e0e]/10', text: 'text-[#0a2e0e]' },
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] rounded-[12px] p-0 gap-0">
@@ -123,6 +237,12 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
         >
           {/* Profile & Status Row */}
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Severity Badge */}
+            <Badge className={`rounded-[8px] px-3 py-1 text-sm font-medium ${severityConfig[severity].bg} ${severityConfig[severity].text} border border-current/10`}>
+              <span className={`w-2 h-2 rounded-full ${severityConfig[severity].dot} mr-1.5 inline-block`} />
+              Severidad: {severityConfig[severity].label}
+            </Badge>
+
             <Badge
               className={`rounded-[8px] px-3 py-1 text-sm font-medium ${
                 alert.profile === 'victima'
@@ -304,6 +424,90 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
               </div>
             </>
           )}
+
+          {/* Notes Section */}
+          <Separator className="bg-[#dddddd]" />
+
+          <div className="bg-[#f5e9d4]/30 border border-[#e8d5b8] rounded-[10px] p-4 -mx-1">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare size={16} className="text-[#41454d]" />
+              <p className="text-xs text-[#41454d] uppercase tracking-wider font-medium">Notas</p>
+              {!loadingNotes && notes.length > 0 && (
+                <span className="text-[10px] bg-[#f5e9d4] text-[#181d26] px-1.5 py-0.5 rounded-[4px] font-medium">
+                  {notes.length}
+                </span>
+              )}
+            </div>
+
+            {/* Notes list */}
+            <div className="space-y-2.5 max-h-60 overflow-y-auto custom-scrollbar mb-3">
+              {loadingNotes ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 size={16} className="text-[#41454d] animate-spin" />
+                  <span className="ml-2 text-xs text-[#41454d]">Cargando notas...</span>
+                </div>
+              ) : notes.length === 0 ? (
+                <div className="text-center py-4">
+                  <MessageSquare size={20} className="text-[#dddddd] mx-auto mb-1.5" />
+                  <p className="text-xs text-[#41454d]">No hay notas para esta alerta</p>
+                </div>
+              ) : (
+                notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="bg-white rounded-[8px] p-3 shadow-sm border border-[#dddddd]/60"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-[#181d26] text-white flex items-center justify-center flex-shrink-0 text-[10px] font-medium">
+                        {getInitials(note.user?.name || 'U')}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-xs font-medium text-[#181d26]">{note.user?.name || 'Usuario'}</span>
+                          <span className="text-[10px] text-[#9297a0]">·</span>
+                          <span className="text-[10px] text-[#9297a0]" title={new Date(note.createdAt).toLocaleString('es-CR')}>
+                            {formatRelativeTime(note.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[#333840] leading-relaxed whitespace-pre-wrap break-words">
+                          {note.content}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Add note input */}
+            {canAddNote && (
+              <div className="flex items-end gap-2">
+                <Textarea
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="Escribir una nota..."
+                  className="min-h-[60px] max-h-[120px] bg-white rounded-[8px] border-[#dddddd] text-sm resize-none focus:border-[#181d26] focus:ring-[#181d26]/10"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault()
+                      handleAddNote()
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleAddNote}
+                  disabled={!noteContent.trim() || submittingNote}
+                  className="bg-[#181d26] text-white rounded-[8px] px-3 h-[60px] hover:bg-[#181d26]/90 shrink-0"
+                >
+                  {submittingNote ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Send size={16} />
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
         </motion.div>
 
         <div className="px-8 pb-8 pt-4 flex items-center justify-end border-t border-[#dddddd]">

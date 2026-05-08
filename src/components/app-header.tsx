@@ -133,7 +133,7 @@ export function AppHeader() {
           <Menu size={20} />
         </Button>
         <div>
-          <h1 className="text-lg font-medium text-[#181d26] leading-tight">
+          <h1 className="text-base sm:text-lg font-medium text-[#181d26] leading-tight">
             Sistema de Alertas Interbancario
           </h1>
           <p className="text-xs text-[#41454d] leading-tight hidden sm:flex items-center gap-1.5">

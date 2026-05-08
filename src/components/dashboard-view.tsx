@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
 import {
   Users,
@@ -18,8 +18,9 @@ import {
   FileText,
   Clock,
   Building2,
+  RefreshCw,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import {
   LineChart,
@@ -27,12 +28,13 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
 } from 'recharts'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 interface DashboardStats {
   totalUsers: number
@@ -86,9 +88,30 @@ function getGreeting() {
   return 'Buenas noches'
 }
 
+// Animated stat number component
+function AnimatedStatNumber({ value }: { value: number }) {
+  return (
+    <motion.span
+      key={value}
+      initial={{ scale: 1 }}
+      animate={{ scale: [1, 1.05, 1] }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="text-3xl font-medium leading-none mb-1.5 inline-block"
+    >
+      {value}
+    </motion.span>
+  )
+}
+
 export function DashboardView() {
   const { setActiveTab, setCreateAlertOpen, currentUser } = useAppStore()
   const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    todayAlerts: 0,
+    monthAlerts: 0,
+    activeAlerts: 0,
+  })
+  const [prevStats, setPrevStats] = useState<DashboardStats>({
     totalUsers: 0,
     todayAlerts: 0,
     monthAlerts: 0,
@@ -105,184 +128,219 @@ export function DashboardView() {
   const [dismissedAlerts, setDismissedAlerts] = useState(0)
   const [totalAlerts, setTotalAlerts] = useState(0)
   const [chartRange, setChartRange] = useState<ChartRange>(7)
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [heatmapAlerts, setHeatmapAlerts] = useState<{createdAt: string}[]>([])
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const [usersRes, todayRes, monthRes, activeRes, allAlertsRes, entitiesRes, trendRes] = await Promise.all([
-          fetch('/api/users'),
-          fetch('/api/alerts?today=true'),
-          fetch('/api/alerts?month=true'),
-          fetch('/api/alerts'),
-          fetch('/api/alerts'),
-          fetch('/api/entities'),
-          fetch(`/api/alerts?days=${chartRange}`),
-        ])
-        const users = await usersRes.json()
-        const today = await todayRes.json()
-        const month = await monthRes.json()
-        const all = await activeRes.json()
-        const allAlerts = await allAlertsRes.json()
-        const entities = await entitiesRes.json()
-        const trend = await trendRes.json()
+  const fetchStats = useCallback(async () => {
+    try {
+      const [usersRes, todayRes, monthRes, activeRes, allAlertsRes, entitiesRes, trendRes] = await Promise.all([
+        fetch('/api/users'),
+        fetch('/api/alerts?today=true'),
+        fetch('/api/alerts?month=true'),
+        fetch('/api/alerts'),
+        fetch('/api/alerts'),
+        fetch('/api/entities'),
+        fetch(`/api/alerts?days=${chartRange}`),
+      ])
+      const users = await usersRes.json()
+      const today = await todayRes.json()
+      const month = await monthRes.json()
+      const all = await activeRes.json()
+      const allAlerts = await allAlertsRes.json()
+      const entities = await entitiesRes.json()
+      const trend = await trendRes.json()
 
-        const allAlertsArray = Array.isArray(allAlerts) ? allAlerts : []
-        const todayArray = Array.isArray(today) ? today : []
-        const monthArray = Array.isArray(month) ? month : []
-        const trendArray = Array.isArray(trend) ? trend : []
+      const allAlertsArray = Array.isArray(allAlerts) ? allAlerts : []
+      const todayArray = Array.isArray(today) ? today : []
+      const monthArray = Array.isArray(month) ? month : []
+      const trendArray = Array.isArray(trend) ? trend : []
 
-        const activeCount = Array.isArray(all) ? all.filter((a: { status: string }) => a.status === 'active').length : 0
-        const resolvedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'resolved').length
-        const dismissedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'dismissed').length
-        const totalCount = allAlertsArray.length
+      const activeCount = Array.isArray(all) ? all.filter((a: { status: string }) => a.status === 'active').length : 0
+      const resolvedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'resolved').length
+      const dismissedCount = allAlertsArray.filter((a: { status: string }) => a.status === 'dismissed').length
+      const totalCount = allAlertsArray.length
 
-        setStats({
-          totalUsers: Array.isArray(users) ? users.length : 0,
-          todayAlerts: todayArray.length,
-          monthAlerts: monthArray.length,
-          activeAlerts: activeCount,
-        })
-        setResolvedAlerts(resolvedCount)
-        setDismissedAlerts(dismissedCount)
-        setTotalAlerts(totalCount)
+      const newStats = {
+        totalUsers: Array.isArray(users) ? users.length : 0,
+        todayAlerts: todayArray.length,
+        monthAlerts: monthArray.length,
+        activeAlerts: activeCount,
+      }
 
-        // Calculate yesterday's alerts for trend
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
-        yesterday.setHours(0, 0, 0, 0)
-        const yesterdayEnd = new Date(yesterday)
-        yesterdayEnd.setHours(23, 59, 59, 999)
-        const yesterdayCount = allAlertsArray.filter((a: { createdAt: string }) => {
-          const d = new Date(a.createdAt)
-          return d >= yesterday && d <= yesterdayEnd
+      setPrevStats(stats)
+      setStats(newStats)
+      setResolvedAlerts(resolvedCount)
+      setDismissedAlerts(dismissedCount)
+      setTotalAlerts(totalCount)
+
+      // Calculate yesterday's alerts for trend
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      yesterday.setHours(0, 0, 0, 0)
+      const yesterdayEnd = new Date(yesterday)
+      yesterdayEnd.setHours(23, 59, 59, 999)
+      const yesterdayCount = allAlertsArray.filter((a: { createdAt: string }) => {
+        const d = new Date(a.createdAt)
+        return d >= yesterday && d <= yesterdayEnd
+      }).length
+      setYesterdayAlerts(yesterdayCount)
+
+      // Last month alerts for trend
+      const now = new Date()
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+      const lastMonthCount = allAlertsArray.filter((a: { createdAt: string }) => {
+        const d = new Date(a.createdAt)
+        return d >= lastMonthStart && d <= lastMonthEnd
+      }).length
+      setLastMonthAlerts(lastMonthCount)
+
+      // Recent 5 alerts
+      setRecentAlerts(allAlertsArray.slice(0, 5))
+
+      // Entity breakdown
+      if (Array.isArray(entities)) {
+        const breakdown: EntityBreakdown[] = entities.map((e: { name: string; code: string }) => ({
+          name: e.name,
+          code: e.code,
+          count: allAlertsArray.filter((a: { financialEntity: { code: string } }) => a.financialEntity?.code === e.code).length,
+          color: entityColors[e.code] || '#41454d',
+        }))
+        setEntityBreakdown(breakdown)
+      }
+
+      // Trend data: daily alert count for selected range
+      const days: TrendData[] = []
+      const rangeDays = chartRange
+      for (let i = rangeDays - 1; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        d.setHours(0, 0, 0, 0)
+        const dEnd = new Date(d)
+        dEnd.setHours(23, 59, 59, 999)
+        const count = trendArray.filter((a: { createdAt: string }) => {
+          const ad = new Date(a.createdAt)
+          return ad >= d && ad <= dEnd
         }).length
-        setYesterdayAlerts(yesterdayCount)
 
-        // Last month alerts for trend
-        const now = new Date()
-        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
-        const lastMonthCount = allAlertsArray.filter((a: { createdAt: string }) => {
-          const d = new Date(a.createdAt)
-          return d >= lastMonthStart && d <= lastMonthEnd
-        }).length
-        setLastMonthAlerts(lastMonthCount)
-
-        // Recent 5 alerts
-        setRecentAlerts(allAlertsArray.slice(0, 5))
-
-        // Entity breakdown
-        if (Array.isArray(entities)) {
-          const breakdown: EntityBreakdown[] = entities.map((e: { name: string; code: string }) => ({
-            name: e.name,
-            code: e.code,
-            count: allAlertsArray.filter((a: { financialEntity: { code: string } }) => a.financialEntity?.code === e.code).length,
-            color: entityColors[e.code] || '#41454d',
-          }))
-          setEntityBreakdown(breakdown)
-        }
-
-        // Trend data: daily alert count for selected range
-        const days: TrendData[] = []
-        const rangeDays = chartRange
-        for (let i = rangeDays - 1; i >= 0; i--) {
-          const d = new Date()
-          d.setDate(d.getDate() - i)
-          d.setHours(0, 0, 0, 0)
-          const dEnd = new Date(d)
-          dEnd.setHours(23, 59, 59, 999)
-          const count = trendArray.filter((a: { createdAt: string }) => {
-            const ad = new Date(a.createdAt)
-            return ad >= d && ad <= dEnd
-          }).length
-
-          let label: string
-          if (rangeDays <= 7) {
-            label = d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric' })
-          } else if (rangeDays <= 30) {
+        let label: string
+        if (rangeDays <= 7) {
+          label = d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric' })
+        } else if (rangeDays <= 30) {
+          label = d.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })
+        } else {
+          if (i % 7 === 0 || i === 0) {
             label = d.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })
           } else {
-            // For 90 days, show weekly labels to avoid crowding
-            if (i % 7 === 0 || i === 0) {
-              label = d.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })
-            } else {
-              label = ''
-            }
+            label = ''
           }
-
-          days.push({
-            date: d.toISOString().split('T')[0],
-            label,
-            count,
-          })
         }
-        setTrendData(days)
 
-        // Distribution data: by profile and status (reuse already calculated counts)
-        const receptorCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'receptor').length
-        const victimaCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'victima').length
+        days.push({
+          date: d.toISOString().split('T')[0],
+          label,
+          count,
+        })
+      }
+      setTrendData(days)
 
-        setDistributionData([
-          { name: 'Receptor', value: receptorCount, color: '#0a2e0e' },
-          { name: 'Víctima', value: victimaCount, color: '#aa2d00' },
-          { name: 'Activa', value: activeCount, color: '#aa2d00' },
-          { name: 'Resuelta', value: resolvedCount, color: '#0a2e0e' },
-          { name: 'Descartada', value: dismissedCount, color: '#f5e9d4' },
-        ].filter(d => d.value > 0))
+      // Distribution data
+      const receptorCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'receptor').length
+      const victimaCount = allAlertsArray.filter((a: { profile: string }) => a.profile === 'victima').length
+
+      setDistributionData([
+        { name: 'Receptor', value: receptorCount, color: '#0a2e0e' },
+        { name: 'Víctima', value: victimaCount, color: '#aa2d00' },
+        { name: 'Activa', value: activeCount, color: '#aa2d00' },
+        { name: 'Resuelta', value: resolvedCount, color: '#0a2e0e' },
+        { name: 'Descartada', value: dismissedCount, color: '#f5e9d4' },
+      ].filter(d => d.value > 0))
+
+      setLastUpdated(new Date())
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [chartRange])
+
+  useEffect(() => {
+    fetchStats()
+
+    // Fetch heatmap data (30 days)
+    async function fetchHeatmap() {
+      try {
+        const res = await fetch('/api/alerts?days=30')
+        const data = await res.json()
+        setHeatmapAlerts(Array.isArray(data) ? data.map((a: { createdAt: string }) => ({ createdAt: a.createdAt })) : [])
       } catch (error) {
-        console.error('Error fetching stats:', error)
-      } finally {
-        setLoading(false)
+        console.error('Error fetching heatmap data:', error)
       }
     }
-    fetchStats()
-  }, [chartRange])
+    fetchHeatmap()
+  }, [chartRange, fetchStats])
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStats()
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [fetchStats])
 
   const todayTrend = yesterdayAlerts > 0 ? ((stats.todayAlerts - yesterdayAlerts) / yesterdayAlerts) * 100 : stats.todayAlerts > 0 ? 100 : 0
   const monthTrend = lastMonthAlerts > 0 ? ((stats.monthAlerts - lastMonthAlerts) / lastMonthAlerts) * 100 : stats.monthAlerts > 0 ? 100 : 0
 
   const statCards = [
     {
-      label: 'Total Usuarios',
-      value: stats.totalUsers,
-      icon: Users,
-      bgColor: 'bg-[#181d26]',
-      textColor: 'text-white',
-      iconColor: 'text-white/70',
-      iconBg: 'bg-white/10',
-      trend: null,
-      trendLabel: null,
-    },
-    {
       label: 'Alertas Hoy',
       value: stats.todayAlerts,
+      prevValue: prevStats.todayAlerts,
       icon: Bell,
-      bgColor: 'bg-[#aa2d00]',
-      textColor: 'text-white',
-      iconColor: 'text-white/80',
-      iconBg: 'bg-white/15',
+      bgColor: 'bg-white',
+      textColor: 'text-[#181d26]',
+      iconColor: 'text-[#aa2d00]',
+      iconBg: 'bg-[#aa2d00]/10',
+      borderLeft: 'border-l-[4px] border-l-[#aa2d00]',
       trend: todayTrend,
       trendLabel: 'vs ayer',
     },
     {
-      label: 'Alertas del Mes',
+      label: 'Total Alertas',
       value: stats.monthAlerts,
+      prevValue: prevStats.monthAlerts,
       icon: TrendingUp,
-      bgColor: 'bg-[#0a2e0e]',
-      textColor: 'text-white',
-      iconColor: 'text-white/80',
-      iconBg: 'bg-white/15',
+      bgColor: 'bg-white',
+      textColor: 'text-[#181d26]',
+      iconColor: 'text-[#0a2e0e]',
+      iconBg: 'bg-[#0a2e0e]/10',
+      borderLeft: 'border-l-[4px] border-l-[#0a2e0e]',
       trend: monthTrend,
       trendLabel: 'vs mes anterior',
     },
     {
-      label: 'Alertas Activas',
-      value: stats.activeAlerts,
-      icon: AlertTriangle,
-      bgColor: 'bg-[#f5e9d4]',
+      label: 'Entidades Activas',
+      value: 3,
+      prevValue: 3,
+      icon: Building2,
+      bgColor: 'bg-white',
       textColor: 'text-[#181d26]',
-      iconColor: 'text-[#aa2d00]',
-      iconBg: 'bg-[#aa2d00]/10',
+      iconColor: 'text-[#181d26]',
+      iconBg: 'bg-[#181d26]/10',
+      borderLeft: 'border-l-[4px] border-l-[#181d26]',
+      trend: null,
+      trendLabel: null,
+    },
+    {
+      label: 'Usuarios',
+      value: stats.totalUsers,
+      prevValue: prevStats.totalUsers,
+      icon: Users,
+      bgColor: 'bg-white',
+      textColor: 'text-[#181d26]',
+      iconColor: 'text-[#f5e9d4]',
+      iconBg: 'bg-[#f5e9d4]/60',
+      borderLeft: 'border-l-[4px] border-l-[#f5e9d4]',
       trend: null,
       trendLabel: null,
     },
@@ -361,11 +419,29 @@ export function DashboardView() {
     <div className="max-w-[1200px]">
       {/* Section Header */}
       <div className="mb-10">
-        <h2 className="text-2xl font-medium text-[#181d26]">Dashboard</h2>
-        <p className="text-[#41454d] mt-1 text-sm">
-          {getGreeting()}, {currentUser?.name?.split(' ')[0] || 'Usuario'} — Resumen general del sistema de alertas
-        </p>
-        <div className="mt-4 h-px bg-[#dddddd]" />
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-medium text-[#181d26]">Dashboard</h2>
+            <p className="text-[#41454d] mt-1 text-sm">
+              {getGreeting()}, {currentUser?.name?.split(' ')[0] || 'Usuario'} — Resumen general del sistema de alertas
+            </p>
+          </div>
+          {/* Last updated indicator */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={lastUpdated.getTime()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="hidden sm:flex items-center gap-2 text-xs text-[#41454d]/60"
+            >
+              <RefreshCw size={12} className="text-[#41454d]/40" />
+              <span>Actualizado: {lastUpdated.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+        <div className="mt-4 h-px bg-gradient-to-r from-transparent via-[#dddddd] to-transparent" />
       </div>
 
       {/* Today Date Header */}
@@ -374,16 +450,17 @@ export function DashboardView() {
       </p>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
         {statCards.map((card) => {
           const Icon = card.icon
+          const hasChanged = card.value !== card.prevValue
           return (
             <div
               key={card.label}
-              className={`${card.bgColor} ${card.textColor} rounded-[12px] p-6 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] will-change-transform relative overflow-hidden`}
+              className={`${card.bgColor} ${card.textColor} ${card.borderLeft} rounded-[12px] p-5 sm:p-6 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] will-change-transform relative overflow-hidden border border-[#dddddd]/60`}
             >
               {/* Subtle pattern overlay */}
-              <div className="absolute inset-0 opacity-[0.04]" style={{
+              <div className="absolute inset-0 opacity-[0.03]" style={{
                 backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
                 backgroundSize: '20px 20px'
               }} />
@@ -393,28 +470,26 @@ export function DashboardView() {
                     <Icon size={20} className={card.iconColor} />
                   </div>
                   {card.trend !== null && card.trend !== 0 && (
-                    <div className={`flex items-center gap-0.5 text-xs font-medium ${card.trend > 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                    <div className={`flex items-center gap-0.5 text-xs font-medium ${card.trend > 0 ? 'text-[#0a2e0e]' : 'text-[#aa2d00]'}`}>
                       {card.trend > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                       <span>{Math.abs(Math.round(card.trend))}%</span>
                     </div>
                   )}
                 </div>
-                <motion.span
-                  key={card.value}
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
-                  className="text-3xl font-medium leading-none mb-1.5"
-                >
-                  {loading ? <div className="h-8 w-16 rounded-[4px] bg-white/20 animate-pulse" /> : card.value}
-                </motion.span>
-                <div className={`text-sm ${card.iconColor} font-normal`}>{card.label}</div>
+                {loading ? (
+                  <div className="h-8 w-16 rounded-[4px] bg-[#f8fafc] animate-pulse mb-1.5" />
+                ) : hasChanged ? (
+                  <AnimatedStatNumber value={card.value} />
+                ) : (
+                  <span className="text-3xl font-medium leading-none mb-1.5 inline-block">{card.value}</span>
+                )}
+                <div className={`text-sm text-[#41454d] font-normal`}>{card.label}</div>
                 {card.trendLabel && card.trend !== 0 && (
-                  <div className={`text-xs mt-1 ${card.iconColor} opacity-60`}>{card.trendLabel}</div>
+                  <div className={`text-xs mt-1 text-[#41454d]/60`}>{card.trendLabel}</div>
                 )}
                 {/* En vivo badge for Alertas Hoy */}
                 {card.label === 'Alertas Hoy' && (
-                  <span className="flex items-center gap-1 text-xs text-white/70 mt-2">
+                  <span className="flex items-center gap-1 text-xs text-[#41454d]/60 mt-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     En vivo
                   </span>
@@ -426,9 +501,9 @@ export function DashboardView() {
       </div>
 
       {/* Status Breakdown */}
-      <div className="grid grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-6">
         {/* Card: Active Alerts */}
-        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
+        <div className="flex items-center gap-3 p-3 sm:p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
           <div className="w-10 h-10 rounded-[8px] bg-[#aa2d00]/10 flex items-center justify-center">
             <ShieldAlert size={20} className="text-[#aa2d00]" />
           </div>
@@ -444,7 +519,7 @@ export function DashboardView() {
         </div>
 
         {/* Card: Resolved Alerts */}
-        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
+        <div className="flex items-center gap-3 p-3 sm:p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
           <div className="w-10 h-10 rounded-[8px] bg-[#0a2e0e]/10 flex items-center justify-center">
             <CheckCircle2 size={20} className="text-[#0a2e0e]" />
           </div>
@@ -460,7 +535,7 @@ export function DashboardView() {
         </div>
 
         {/* Card: Dismissed Alerts */}
-        <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
+        <div className="flex items-center gap-3 p-3 sm:p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
           <div className="w-10 h-10 rounded-[8px] bg-[#f5e9d4]/60 flex items-center justify-center">
             <XCircle size={20} className="text-[#41454d]" />
           </div>
@@ -473,6 +548,123 @@ export function DashboardView() {
               <div className="h-full bg-[#41454d] rounded-full transition-all duration-500" style={{ width: `${totalAlerts > 0 ? (dismissedAlerts / totalAlerts) * 100 : 0}%` }} />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Activity Heatmap */}
+      <div className="mt-8">
+        <div className="bg-white border border-[#dddddd] rounded-[12px] p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-[#181d26]">Mapa de Actividad</h3>
+            <p className="text-xs text-[#41454d] mt-0.5">Alertas por día en las últimas 4 semanas</p>
+          </div>
+          {loading ? (
+            <div className="animate-pulse h-40 bg-[#f8fafc] rounded-[8px]" />
+          ) : (
+            (() => {
+              const dayHeaders = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D']
+              const rowLabels = ['4 sem. atrás', '3 sem. atrás', '2 sem. atrás', 'Sem. pasada']
+
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              const dayOfWeek = today.getDay()
+              const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+              const thisMonday = new Date(today)
+              thisMonday.setDate(today.getDate() + mondayOffset)
+
+              const startDate = new Date(thisMonday)
+              startDate.setDate(thisMonday.getDate() - 21)
+
+              const weeks: { date: Date; count: number; dateStr: string }[][] = []
+              for (let w = 0; w < 4; w++) {
+                const week: { date: Date; count: number; dateStr: string }[] = []
+                for (let d = 0; d < 7; d++) {
+                  const cellDate = new Date(startDate)
+                  cellDate.setDate(startDate.getDate() + w * 7 + d)
+                  const dateStr = cellDate.toISOString().split('T')[0]
+                  const nextDay = new Date(cellDate)
+                  nextDay.setDate(nextDay.getDate() + 1)
+                  const count = heatmapAlerts.filter((a) => {
+                    const ad = new Date(a.createdAt)
+                    return ad >= cellDate && ad < nextDay
+                  }).length
+                  week.push({ date: cellDate, count, dateStr })
+                }
+                weeks.push(week)
+              }
+
+              function getHeatColor(count: number) {
+                if (count === 0) return 'bg-[#f8fafc]'
+                if (count <= 2) return 'bg-[#f5e9d4]/60'
+                if (count <= 5) return 'bg-[#f5e9d4]'
+                if (count <= 10) return 'bg-[#aa2d00]/40'
+                return 'bg-[#aa2d00]'
+              }
+
+              function formatDateShort(date: Date) {
+                return date.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })
+              }
+
+              return (
+                <div>
+                  <div className="flex items-start gap-2">
+                    <div className="flex flex-col gap-1.5 pt-7 shrink-0">
+                      {rowLabels.map((label) => (
+                        <div key={label} className="h-[28px] flex items-center pr-2">
+                          <span className="text-[10px] text-[#41454d] whitespace-nowrap">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex-1 overflow-x-auto">
+                      <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+                        {dayHeaders.map((h) => (
+                          <div key={h} className="text-center text-[10px] text-[#41454d] font-medium uppercase tracking-wider">
+                            {h}
+                          </div>
+                        ))}
+                      </div>
+                      {weeks.map((week, wi) => (
+                        <div key={wi} className="grid grid-cols-7 gap-1.5 mb-1.5">
+                          {week.map((cell) => (
+                            <Tooltip key={cell.dateStr}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`h-[28px] rounded-[4px] ${getHeatColor(cell.count)} transition-colors cursor-default border border-[#dddddd]/40`}
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="top"
+                                className="bg-[#181d26] text-white text-xs rounded-[6px] px-2.5 py-1.5 border-0"
+                              >
+                                <span className="font-medium">{formatDateShort(cell.date)}</span>
+                                <span className="text-white/70 ml-1.5">· {cell.count} alerta{cell.count !== 1 ? 's' : ''}</span>
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-4 pt-3 border-t border-[#dddddd]/60">
+                    <span className="text-[10px] text-[#41454d]">Menos</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded-[4px] bg-[#f8fafc] border border-[#dddddd]/40" />
+                      <div className="w-4 h-4 rounded-[4px] bg-[#f5e9d4]/60 border border-[#dddddd]/40" />
+                      <div className="w-4 h-4 rounded-[4px] bg-[#f5e9d4] border border-[#dddddd]/40" />
+                      <div className="w-4 h-4 rounded-[4px] bg-[#aa2d00]/40 border border-[#dddddd]/40" />
+                      <div className="w-4 h-4 rounded-[4px] bg-[#aa2d00] border border-[#dddddd]/40" />
+                    </div>
+                    <span className="text-[10px] text-[#41454d]">Más</span>
+                    <span className="text-[10px] text-[#41454d] ml-2">0</span>
+                    <span className="text-[10px] text-[#41454d]">1-2</span>
+                    <span className="text-[10px] text-[#41454d]">3-5</span>
+                    <span className="text-[10px] text-[#41454d]">6-10</span>
+                    <span className="text-[10px] text-[#41454d]">11+</span>
+                  </div>
+                </div>
+              )
+            })()
+          )}
         </div>
       </div>
 
@@ -537,7 +729,7 @@ export function DashboardView() {
                       axisLine={false}
                       allowDecimals={false}
                     />
-                    <Tooltip
+                    <RechartsTooltip
                       contentStyle={{
                         backgroundColor: '#fff',
                         border: '1px solid #dddddd',
@@ -599,7 +791,7 @@ export function DashboardView() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip
+                      <RechartsTooltip
                         contentStyle={{
                           backgroundColor: '#fff',
                           border: '1px solid #dddddd',
@@ -827,7 +1019,7 @@ export function DashboardView() {
           backgroundImage: `radial-gradient(circle at 2px 2px, #181d26 1px, transparent 0)`,
           backgroundSize: '24px 24px'
         }} />
-        <div className="relative z-10 p-8">
+        <div className="relative z-10 p-6 sm:p-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-3">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore, type NavTab } from '@/lib/store'
-import { Home, Users, Bell, Clock, Calendar, ChevronDown, ChevronRight, Shield, LogOut, ScrollText, Building2 } from 'lucide-react'
+import { Home, Users, Bell, Clock, Calendar, ChevronDown, ChevronRight, Shield, LogOut, ScrollText, Building2, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 const entityDotColors: Record<string, string> = {
@@ -70,7 +70,7 @@ export function AppSidebar() {
   return (
     <aside className={`fixed left-0 top-0 bottom-0 w-[256px] bg-white border-r border-[#dddddd] z-40 flex flex-col lg:relative lg:z-auto transform transition-transform duration-300 ease-in-out ${!sidebarOpen ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}`}>
       {/* Logo area */}
-      <div className="h-[64px] flex items-center px-5 border-b border-[#dddddd] shrink-0">
+      <div className="h-[64px] flex items-center justify-between px-5 border-b border-[#dddddd] shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-[10px] bg-[#181d26] flex items-center justify-center relative">
             <Shield size={18} className="text-white" />
@@ -87,6 +87,13 @@ export function AppSidebar() {
             <p className="text-[#41454d] text-[11px] leading-tight">Interbancario CR</p>
           </div>
         </div>
+        {/* Close button for mobile sidebar */}
+        <button
+          className="lg:hidden w-8 h-8 rounded-[8px] flex items-center justify-center text-[#41454d] hover:text-[#181d26] hover:bg-[#f8fafc] transition-colors"
+          onClick={() => useAppStore.getState().setSidebarOpen(false)}
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Navigation */}

@@ -29,6 +29,7 @@ model User {
   financialEntity  FinancialEntity  @relation(fields: [financialEntityId], references: [id])
   alerts           Alert[]
   auditLogs        AuditLog[]
+  notes            Note[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 }
@@ -57,6 +58,18 @@ model Alert {
   creator           User            @relation(fields: [createdBy], references: [id])
   financialEntityId String
   financialEntity   FinancialEntity @relation(fields: [financialEntityId], references: [id])
+  notes             Note[]
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  alertId   String
+  alert     Alert    @relation(fields: [alertId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

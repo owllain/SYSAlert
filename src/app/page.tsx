@@ -140,23 +140,24 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-[#dddddd] bg-[#f8fafc] py-4 px-6 mt-auto">
+      <footer className="border-t border-[#dddddd] bg-[#f8fafc] py-3 sm:py-4 px-4 sm:px-6 mt-auto">
         <div className="flex items-center justify-between max-w-[1280px] mx-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-5 h-5 rounded-[4px] bg-[#181d26] flex items-center justify-center">
               <span className="text-white text-[8px] font-medium">SA</span>
             </div>
             <span className="text-xs text-[#41454d]">
-              Sistema de Alertas Interbancario v2.0
+              <span className="hidden sm:inline">Sistema de Alertas Interbancario v2.0</span>
+              <span className="sm:hidden">SAI v2.0</span>
             </span>
-            <span className="text-[#dddddd]">|</span>
+            <span className="text-[#dddddd] hidden sm:inline">|</span>
             <span className="text-xs text-[#41454d] hidden sm:inline">
               {currentUser?.financialEntityName || ''}
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <span className="text-xs text-[#9297a0]">
-              © {new Date().getFullYear()} Costa Rica
+              © {new Date().getFullYear()}
             </span>
             <span className="text-[#dddddd] hidden sm:inline">|</span>
             <span className="text-xs text-[#9297a0] hidden sm:inline">

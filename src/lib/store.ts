@@ -23,6 +23,8 @@ interface AppState {
   setCreateAlertOpen: (open: boolean) => void
   searchFocused: boolean
   setSearchFocused: (focused: boolean) => void
+  selectedEntityId: string | null
+  setSelectedEntityId: (id: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -43,6 +45,8 @@ export const useAppStore = create<AppState>((set) => ({
   setCreateAlertOpen: (open) => set({ createAlertOpen: open, ...(open ? { activeTab: 'my-alerts' as NavTab } : {}) }),
   searchFocused: false,
   setSearchFocused: (focused) => set({ searchFocused: focused }),
+  selectedEntityId: null,
+  setSelectedEntityId: (id) => set({ selectedEntityId: id }),
 }))
 
 // Helper to get saved user ID from localStorage (client only)

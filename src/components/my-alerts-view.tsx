@@ -37,6 +37,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Alert {
   id: string
@@ -67,6 +68,48 @@ const statusLabels: Record<string, string> = {
   dismissed: 'Descartada',
 }
 
+function getSeverity(alert: { profile: string; economicAffectation: boolean }) {
+  if (alert.profile === 'victima' && alert.economicAffectation) return 'high'
+  if (alert.profile === 'victima' || alert.economicAffectation) return 'medium'
+  return 'low'
+}
+
+function getSeverityDot(severity: 'high' | 'medium' | 'low') {
+  switch (severity) {
+    case 'high': return 'bg-[#aa2d00]'
+    case 'medium': return 'bg-[#f5e9d4]'
+    case 'low': return 'bg-[#0a2e0e]'
+  }
+}
+
+function EmptyState({ searchQuery }: { searchQuery: string }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={9} className="py-0 border-0">
+        <div className="flex items-center justify-center py-12">
+          <div className="border-2 border-dashed border-[#dddddd] rounded-[12px] p-8 text-center max-w-md">
+            <motion.div
+              className="w-16 h-16 rounded-full bg-[#aa2d00]/10 flex items-center justify-center mx-auto mb-4"
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <ShieldAlert size={28} className="text-[#aa2d00]/60" />
+            </motion.div>
+            <p className="font-medium text-[#181d26] text-base">
+              {searchQuery ? 'No se encontraron alertas' : 'No tiene alertas registradas'}
+            </p>
+            <p className="text-sm text-[#41454d] mt-1">
+              {searchQuery
+                ? 'Intente con otro término de búsqueda'
+                : 'Las alertas que cree aparecerán aquí'}
+            </p>
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
 export function MyAlertsView() {
   const { currentUser, createAlertOpen, setCreateAlertOpen, searchFocused, setSearchFocused } = useAppStore()
   const [alerts, setAlerts] = useState<Alert[]>([])
@@ -77,6 +120,7 @@ export function MyAlertsView() {
   const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [changingStatus, setChangingStatus] = useState<string | null>(null)
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchAlerts = useCallback(async () => {
@@ -119,7 +163,9 @@ export function MyAlertsView() {
     return alerts.filter(
       (a) =>
         a.personName.toLowerCase().includes(q) ||
-        a.personId.toLowerCase().includes(q)
+        a.personId.toLowerCase().includes(q) ||
+        a.description.toLowerCase().includes(q) ||
+        (a.financialEntity?.name || '').toLowerCase().includes(q)
     )
   }, [alerts, searchQuery])
 
@@ -170,6 +216,13 @@ export function MyAlertsView() {
   const truncate = (str: string, len: number) =>
     str.length > len ? str.substring(0, len) + '...' : str
 
+  const handleRowClick = (alert: Alert, e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    // Don't expand if clicking checkbox, button, or action area
+    if (target.closest('button') || target.closest('[role="checkbox"]') || target.closest('.actions-cell')) return
+    setExpandedRow(expandedRow === alert.id ? null : alert.id)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -196,13 +249,13 @@ export function MyAlertsView() {
 
       {/* Search Bar */}
       <div className="mb-6">
-        <div className="relative max-w-sm">
+        <div className="relative w-full sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
           <Input
             ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por nombre o identificación..."
+            placeholder="Buscar por nombre, ID, descripción o entidad..."
             className="pl-9 h-10 rounded-[8px] border-[#dddddd] bg-white focus:border-[#181d26] focus:ring-[#181d26]/10 text-sm"
           />
         </div>
@@ -212,6 +265,7 @@ export function MyAlertsView() {
         <Table>
           <TableHeader>
             <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
+              <TableHead className="w-[20px] px-2" />
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden md:table-cell">Identificación</TableHead>
@@ -228,6 +282,7 @@ export function MyAlertsView() {
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i} className={`border-l-2 border-l-transparent ${i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
+                  <TableCell className="px-2"><Skeleton className="h-2.5 w-2.5 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
@@ -239,163 +294,194 @@ export function MyAlertsView() {
                 </TableRow>
               ))
             ) : filteredAlerts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={currentUser?.role !== 'viewer' ? 8 : 7} className="text-center py-20 text-[#41454d]">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
-                      <ShieldAlert size={28} className="text-[#41454d]/40" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#181d26]">
-                        {searchQuery ? 'No se encontraron alertas' : 'No tiene alertas registradas'}
-                      </p>
-                      <p className="text-sm text-[#41454d] mt-1">
-                        {searchQuery
-                          ? 'Intente con otro término de búsqueda'
-                          : 'Cree su primera alerta usando el botón superior'}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <EmptyState searchQuery={searchQuery} />
             ) : (
               filteredAlerts.map((alert, idx) => (
-                <TableRow
-                  key={alert.id}
-                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
-                  onClick={() => setDetailAlert(alert)}
-                >
-                  <TableCell>
-                    <Badge
-                      className={`rounded-[6px] font-normal text-xs ${
-                        alert.profile === 'victima'
-                          ? 'bg-[#aa2d00] text-white'
-                          : 'bg-[#0a2e0e] text-white'
-                      }`}
-                    >
-                      {alert.profile === 'victima' ? 'Víctima' : 'Receptor'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium text-[#181d26]">{alert.personName}</TableCell>
-                  <TableCell className="text-[#41454d] hidden md:table-cell">
-                    <span className="font-mono text-xs">{alert.personId}</span>
-                    <span className="text-[10px] text-[#41454d] ml-1.5 bg-[#f8fafc] px-1.5 py-0.5 rounded-[4px] border border-[#dddddd]">
-                      {idTypeLabels[alert.personIdType]}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    {alert.economicAffectation ? (
-                      <Badge className="rounded-[6px] text-xs font-normal bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]">
-                        <DollarSign size={11} className="mr-0.5" />
-                        Sí
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-[#41454d]">No</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-[#41454d] hidden xl:table-cell text-sm max-w-[200px]">
-                    {truncate(alert.description, 50)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={`rounded-[6px] font-normal text-xs ${
-                        alert.status === 'active'
-                          ? 'bg-[#0a2e0e]/10 text-[#0a2e0e] border border-[#0a2e0e]/20'
-                          : alert.status === 'resolved'
-                          ? 'bg-[#f8fafc] text-[#41454d] border border-[#dddddd]'
-                          : 'bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]'
-                      }`}
-                    >
-                      {statusLabels[alert.status] || alert.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-[#41454d] text-sm hidden sm:table-cell whitespace-nowrap">
-                    {formatDate(alert.createdAt)}
-                  </TableCell>
-                  {currentUser?.role !== 'viewer' && (
-                    <TableCell className="text-right">
+                <>
+                  <TableRow
+                    key={alert.id}
+                    className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors relative group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
+                    onClick={(e) => handleRowClick(alert, e)}
+                  >
+                    {/* Animated left border indicator */}
+                    <td className="absolute left-0 top-0 bottom-0 w-[2px] overflow-hidden">
                       <div
-                        className="flex items-center justify-end gap-0.5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
-                          onClick={() => { setEditAlert(alert); setFormOpen(true) }}
-                        >
-                          <Pencil size={14} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-[#aa2d00] hover:text-[#aa2d00]/80"
-                          onClick={() => setDeleteAlert(alert)}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
-                              disabled={changingStatus === alert.id}
-                            >
-                              <MoreHorizontal size={14} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="rounded-[8px]">
-                            {alert.status === 'active' && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => handleStatusChange(alert.id, 'resolved')}
-                                  className="text-sm cursor-pointer"
-                                >
-                                  <CheckCircle2 size={14} className="mr-2 text-[#0a2e0e]" />
-                                  Marcar como Resuelta
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleStatusChange(alert.id, 'dismissed')}
-                                  className="text-sm cursor-pointer"
-                                >
-                                  <XCircle size={14} className="mr-2 text-[#aa2d00]" />
-                                  Descartar Alerta
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {alert.status === 'resolved' && (
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(alert.id, 'active')}
-                                className="text-sm cursor-pointer"
-                              >
-                                <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
-                                Reactivar Alerta
-                              </DropdownMenuItem>
-                            )}
-                            {alert.status === 'dismissed' && (
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(alert.id, 'active')}
-                                className="text-sm cursor-pointer"
-                              >
-                                <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
-                                Reactivar Alerta
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => setDetailAlert(alert)}
-                              className="text-sm cursor-pointer"
-                            >
-                              Ver Detalle
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                        className="w-full bg-[#aa2d00] transition-all duration-300 ease-out"
+                        style={{ height: expandedRow === alert.id ? '100%' : '0%', marginTop: expandedRow === alert.id ? '0' : '50%' }}
+                      />
+                    </td>
+                    <TableCell className="px-2">
+                      <div className={`w-2.5 h-2.5 rounded-full ${getSeverityDot(getSeverity(alert))}`} />
                     </TableCell>
-                  )}
-                </TableRow>
+                    <TableCell>
+                      <Badge
+                        className={`rounded-[6px] font-normal text-xs ${
+                          alert.profile === 'victima'
+                            ? 'bg-[#aa2d00] text-white'
+                            : 'bg-[#0a2e0e] text-white'
+                        }`}
+                      >
+                        {alert.profile === 'victima' ? 'Víctima' : 'Receptor'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium text-[#181d26]">{alert.personName}</TableCell>
+                    <TableCell className="text-[#41454d] hidden md:table-cell">
+                      <span className="font-mono text-xs">{alert.personId}</span>
+                      <span className="text-[10px] text-[#41454d] ml-1.5 bg-[#f8fafc] px-1.5 py-0.5 rounded-[4px] border border-[#dddddd]">
+                        {idTypeLabels[alert.personIdType]}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {alert.economicAffectation ? (
+                        <Badge className="rounded-[6px] text-xs font-normal bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]">
+                          <DollarSign size={11} className="mr-0.5" />
+                          Sí
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-[#41454d]">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-[#41454d] hidden xl:table-cell text-sm max-w-[200px]">
+                      {truncate(alert.description, 50)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={`rounded-[6px] font-normal text-xs ${
+                          alert.status === 'active'
+                            ? 'bg-[#0a2e0e]/10 text-[#0a2e0e] border border-[#0a2e0e]/20'
+                            : alert.status === 'resolved'
+                            ? 'bg-[#f8fafc] text-[#41454d] border border-[#dddddd]'
+                            : 'bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]'
+                        }`}
+                      >
+                        {statusLabels[alert.status] || alert.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-[#41454d] text-sm hidden sm:table-cell whitespace-nowrap">
+                      {formatDate(alert.createdAt)}
+                    </TableCell>
+                    {currentUser?.role !== 'viewer' && (
+                      <TableCell className="text-right actions-cell">
+                        <div
+                          className="flex items-center justify-end gap-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
+                            onClick={() => { setEditAlert(alert); setFormOpen(true) }}
+                          >
+                            <Pencil size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#aa2d00] hover:text-[#aa2d00]/80"
+                            onClick={() => setDeleteAlert(alert)}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
+                                disabled={changingStatus === alert.id}
+                              >
+                                <MoreHorizontal size={14} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-[8px]">
+                              {alert.status === 'active' && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusChange(alert.id, 'resolved')}
+                                    className="text-sm cursor-pointer"
+                                  >
+                                    <CheckCircle2 size={14} className="mr-2 text-[#0a2e0e]" />
+                                    Marcar como Resuelta
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusChange(alert.id, 'dismissed')}
+                                    className="text-sm cursor-pointer"
+                                  >
+                                    <XCircle size={14} className="mr-2 text-[#aa2d00]" />
+                                    Descartar Alerta
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {alert.status === 'resolved' && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(alert.id, 'active')}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
+                                  Reactivar Alerta
+                                </DropdownMenuItem>
+                              )}
+                              {alert.status === 'dismissed' && (
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(alert.id, 'active')}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
+                                  Reactivar Alerta
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => setDetailAlert(alert)}
+                                className="text-sm cursor-pointer"
+                              >
+                                Ver Detalle
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                  {/* Expanded row with description preview */}
+                  <AnimatePresence key={`expand-${alert.id}`}>
+                    {expandedRow === alert.id && (
+                      <motion.tr
+                        key={`expanded-${alert.id}`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="bg-[#f8fafc]/80 border-b border-[#dddddd]"
+                      >
+                        <td colSpan={currentUser?.role !== 'viewer' ? 9 : 8} className="px-6 py-3">
+                          <motion.div
+                            initial={{ y: -5, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: -5, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <p className="text-xs font-medium text-[#41454d] uppercase tracking-wider mb-1">Descripción</p>
+                            <p className="text-sm text-[#181d26] whitespace-pre-wrap leading-relaxed">
+                              {alert.description}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2">
+                              <span className="text-xs text-[#41454d]">ID: <span className="font-mono">{alert.personId}</span></span>
+                              <span className="text-xs text-[#41454d]">Creada: {formatDate(alert.createdAt)}</span>
+                              <button
+                                className="text-xs font-medium text-[#aa2d00] hover:text-[#8c2500] transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setDetailAlert(alert) }}
+                              >
+                                Ver detalle completo →
+                              </button>
+                            </div>
+                          </motion.div>
+                        </td>
+                      </motion.tr>
+                    )}
+                  </AnimatePresence>
+                </>
               ))
             )}
           </TableBody>

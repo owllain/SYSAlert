@@ -56,7 +56,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function EntitiesView() {
-  const { setActiveTab } = useAppStore()
+  const { setActiveTab, setSelectedEntityId } = useAppStore()
   const [entities, setEntities] = useState<Entity[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
@@ -229,7 +229,10 @@ export function EntitiesView() {
 
                 {/* View alerts button */}
                 <button
-                  onClick={() => setActiveTab('latest-alerts')}
+                  onClick={() => {
+                    setSelectedEntityId(entity.id)
+                    setActiveTab('latest-alerts')
+                  }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[8px] border border-[#dddddd] text-sm text-[#41454d] hover:bg-[#f8fafc] hover:border-[#9297a0] transition-all"
                 >
                   Ver alertas

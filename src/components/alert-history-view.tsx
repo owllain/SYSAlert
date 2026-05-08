@@ -20,6 +20,7 @@ import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDay
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Entity {
   id: string
@@ -51,6 +52,48 @@ const idTypeLabels: Record<string, string> = {
 
 const PAGE_SIZE = 10
 
+function getSeverity(alert: { profile: string; economicAffectation: boolean }) {
+  if (alert.profile === 'victima' && alert.economicAffectation) return 'high'
+  if (alert.profile === 'victima' || alert.economicAffectation) return 'medium'
+  return 'low'
+}
+
+function getSeverityDot(severity: 'high' | 'medium' | 'low') {
+  switch (severity) {
+    case 'high': return 'bg-[#aa2d00]'
+    case 'medium': return 'bg-[#f5e9d4]'
+    case 'low': return 'bg-[#0a2e0e]'
+  }
+}
+
+function EmptyState({ searchQuery, hasFilters, colSpan }: { searchQuery: string; hasFilters: boolean; colSpan: number }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={colSpan} className="py-0 border-0">
+        <div className="flex items-center justify-center py-12">
+          <div className="border-2 border-dashed border-[#dddddd] rounded-[12px] p-8 text-center max-w-md">
+            <motion.div
+              className="w-16 h-16 rounded-full bg-[#0a2e0e]/10 flex items-center justify-center mx-auto mb-4"
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <CalendarDays size={28} className="text-[#0a2e0e]/60" />
+            </motion.div>
+            <p className="font-medium text-[#181d26] text-base">
+              {searchQuery || hasFilters ? 'No se encontraron alertas' : 'No hay alertas este mes'}
+            </p>
+            <p className="text-sm text-[#41454d] mt-1">
+              {searchQuery || hasFilters
+                ? 'Intente ajustar los filtros de búsqueda'
+                : 'Las alertas del mes aparecerán aquí'}
+            </p>
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
 export function AlertHistoryView() {
   const { currentUser, searchFocused, setSearchFocused } = useAppStore()
   const [alerts, setAlerts] = useState<Alert[]>([])
@@ -65,6 +108,7 @@ export function AlertHistoryView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
   const [showPrintReport, setShowPrintReport] = useState(false)
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchEntities = useCallback(async () => {
@@ -114,7 +158,9 @@ export function AlertHistoryView() {
     return baseFilteredAlerts.filter(
       (a) =>
         a.personName.toLowerCase().includes(q) ||
-        a.personId.toLowerCase().includes(q)
+        a.personId.toLowerCase().includes(q) ||
+        a.description.toLowerCase().includes(q) ||
+        (a.financialEntity?.name || '').toLowerCase().includes(q)
     )
   }, [baseFilteredAlerts, searchQuery])
 
@@ -200,7 +246,15 @@ export function AlertHistoryView() {
     }
   }
 
+  const handleRowClick = (alert: Alert, e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('[role="checkbox"]') || target.closest('.actions-cell')) return
+    setExpandedRow(expandedRow === alert.id ? null : alert.id)
+  }
+
   const isViewer = currentUser?.role === 'viewer'
+
+  const hasActiveFilters = filterEntityId !== 'all' || filterProfile !== 'all' || filterStatus !== 'all'
 
   return (
     <div>
@@ -298,13 +352,13 @@ export function AlertHistoryView() {
 
       {/* Search Bar */}
       <div className="mb-6">
-        <div className="relative max-w-sm">
+        <div className="relative w-full sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
           <Input
             ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por nombre o identificación..."
+            placeholder="Buscar por nombre, ID, descripción o entidad..."
             className="pl-9 h-10 rounded-[8px] border-[#dddddd] bg-white focus:border-[#181d26] focus:ring-[#181d26]/10 text-sm"
           />
         </div>
@@ -329,6 +383,7 @@ export function AlertHistoryView() {
                   />
                 </TableHead>
               )}
+              <TableHead className="w-[20px] px-2" />
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Entidad</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
@@ -344,6 +399,7 @@ export function AlertHistoryView() {
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i} className={`border-l-2 border-l-transparent ${i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
                   <TableCell className="px-3"><Skeleton className="h-4 w-4" /></TableCell>
+                  <TableCell className="px-2"><Skeleton className="h-2.5 w-2.5 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
@@ -355,80 +411,106 @@ export function AlertHistoryView() {
                 </TableRow>
               ))
             ) : paginatedAlerts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isViewer ? 8 : 9} className="text-center py-20 text-[#41454d]">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
-                      <CalendarDays size={28} className="text-[#41454d]/40" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#181d26]">
-                        {searchQuery ? 'No se encontraron alertas' : 'No hay alertas este mes'}
-                      </p>
-                      <p className="text-sm text-[#41454d] mt-1">
-                        {searchQuery
-                          ? 'Intente con otro término de búsqueda'
-                          : 'Las alertas del mes aparecerán aquí'}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <EmptyState searchQuery={searchQuery} hasFilters={hasActiveFilters} colSpan={isViewer ? 10 : 11} />
             ) : (
               paginatedAlerts.map((alert, idx) => (
-                <TableRow
-                  key={alert.id}
-                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 ${selectedIds.has(alert.id) ? 'bg-[#f8fafc]' : idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
-                  onClick={() => setDetailAlert(alert)}
-                >
-                  {!isViewer && (
-                    <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedIds.has(alert.id)}
-                        onCheckedChange={() => toggleSelect(alert.id)}
-                        className="rounded-[4px]"
+                <>
+                  <TableRow
+                    key={alert.id}
+                    className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors relative group ${selectedIds.has(alert.id) ? 'bg-[#f8fafc]' : idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
+                    onClick={(e) => handleRowClick(alert, e)}
+                  >
+                    {/* Animated left border indicator */}
+                    <td className="absolute left-0 top-0 bottom-0 w-[2px] overflow-hidden">
+                      <div
+                        className="w-full bg-[#aa2d00] transition-all duration-300 ease-out"
+                        style={{ height: expandedRow === alert.id ? '100%' : '0%', marginTop: expandedRow === alert.id ? '0' : '50%' }}
                       />
-                    </TableCell>
-                  )}
-                  <TableCell className="text-[#41454d] text-sm">{alert.financialEntity?.name || '—'}</TableCell>
-                  <TableCell>
-                    <Badge
-                      className={`rounded-[6px] font-normal text-xs ${
-                        alert.profile === 'victima'
-                          ? 'bg-[#aa2d00] text-white'
-                          : 'bg-[#0a2e0e] text-white'
-                      }`}
-                    >
-                      {alert.profile === 'victima' ? 'Víctima' : 'Receptor'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium text-[#181d26]">{alert.personName}</TableCell>
-                  <TableCell className="text-[#41454d] hidden md:table-cell">
-                    <span className="font-mono text-xs">{alert.personId}</span>
-                    <span className="text-[10px] text-[#41454d] ml-1.5 bg-[#f8fafc] px-1.5 py-0.5 rounded-[4px] border border-[#dddddd]">
-                      {idTypeLabels[alert.personIdType]}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    {alert.economicAffectation ? (
-                      <Badge className="rounded-[6px] text-xs font-normal bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]">
-                        <DollarSign size={11} className="mr-0.5" />
-                        Sí
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-[#41454d]">No</span>
+                    </td>
+                    {!isViewer && (
+                      <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(alert.id)}
+                          onCheckedChange={() => toggleSelect(alert.id)}
+                          className="rounded-[4px]"
+                        />
+                      </TableCell>
                     )}
-                  </TableCell>
-                  <TableCell className="text-[#41454d] hidden xl:table-cell text-sm max-w-[200px]">
-                    {truncate(alert.description, 50)}
-                  </TableCell>
-                  <TableCell className="text-[#41454d] text-sm hidden sm:table-cell">
-                    {alert.creator?.name || '—'}
-                  </TableCell>
-                  <TableCell className="text-[#41454d] text-sm whitespace-nowrap">
-                    {formatDate(alert.createdAt)}
-                  </TableCell>
-                </TableRow>
+                    <TableCell className="px-2">
+                      <div className={`w-2.5 h-2.5 rounded-full ${getSeverityDot(getSeverity(alert))}`} />
+                    </TableCell>
+                    <TableCell className="text-[#41454d] text-sm">{alert.financialEntity?.name || '—'}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={`rounded-[6px] font-normal text-xs ${
+                          alert.profile === 'victima'
+                            ? 'bg-[#aa2d00] text-white'
+                            : 'bg-[#0a2e0e] text-white'
+                        }`}
+                      >
+                        {alert.profile === 'victima' ? 'Víctima' : 'Receptor'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium text-[#181d26]">{alert.personName}</TableCell>
+                    <TableCell className="text-[#41454d] hidden md:table-cell">
+                      <span className="font-mono text-xs">{alert.personId}</span>
+                      <span className="text-[10px] text-[#41454d] ml-1.5 bg-[#f8fafc] px-1.5 py-0.5 rounded-[4px] border border-[#dddddd]">
+                        {idTypeLabels[alert.personIdType]}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {alert.economicAffectation ? (
+                        <Badge className="rounded-[6px] text-xs font-normal bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]">
+                          <DollarSign size={11} className="mr-0.5" />
+                          Sí
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-[#41454d]">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-[#41454d] hidden xl:table-cell text-sm max-w-[200px]">
+                      {truncate(alert.description, 50)}
+                    </TableCell>
+                    <TableCell className="text-[#41454d] text-sm hidden sm:table-cell">
+                      {alert.creator?.name || '—'}
+                    </TableCell>
+                    <TableCell className="text-[#41454d] text-sm whitespace-nowrap">
+                      {formatDate(alert.createdAt)}
+                    </TableCell>
+                  </TableRow>
+                  {/* Expanded row with description preview */}
+                  <AnimatePresence key={`expand-${alert.id}`}>
+                    {expandedRow === alert.id && (
+                      <motion.tr
+                        key={`expanded-${alert.id}`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="bg-[#f8fafc]/80 border-b border-[#dddddd]"
+                      >
+                        <td colSpan={isViewer ? 10 : 11} className="px-6 py-3">
+                          <motion.div
+                            initial={{ y: -5, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: -5, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <p className="text-xs font-medium text-[#41454d] uppercase tracking-wider mb-1">Descripción</p>
+                            <p className="text-sm text-[#181d26] whitespace-pre-wrap leading-relaxed">
+                              {alert.description}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2">
+                              <span className="text-xs text-[#41454d]">Entidad: {alert.financialEntity?.name}</span>
+                              <span className="text-xs text-[#41454d]">Creada por: {alert.creator?.name}</span>
+                              <span className="text-xs text-[#41454d]">ID: <span className="font-mono">{alert.personId}</span></span>
+                            </div>
+                          </motion.div>
+                        </td>
+                      </motion.tr>
+                    )}
+                  </AnimatePresence>
+                </>
               ))
             )}
           </TableBody>
@@ -448,35 +530,43 @@ export function AlertHistoryView() {
           <p className="text-sm text-[#41454d]">
             Mostrando {(page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, filteredAlerts.length)} de {filteredAlerts.length} alertas
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="icon"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="h-9 w-9 rounded-[8px] border-[#dddddd]"
+              className="h-9 w-9 rounded-[8px] border-[#dddddd] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronLeft size={16} />
             </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <Button
-                key={p}
-                variant={p === page ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => setPage(p)}
-                className={`h-9 w-9 rounded-[8px] ${
-                  p === page ? 'bg-[#181d26] text-white' : 'border-[#dddddd] text-[#41454d]'
-                }`}
-              >
-                {p}
-              </Button>
-            ))}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .map((p, idx, arr) => {
+                const prevP = arr[idx - 1]
+                const showEllipsis = prevP !== undefined && p - prevP > 1
+                return (
+                  <span key={p} className="flex items-center gap-1.5">
+                    {showEllipsis && <span className="text-[#41454d] text-xs px-1">...</span>}
+                    <Button
+                      variant={p === page ? 'default' : 'outline'}
+                      size="icon"
+                      onClick={() => setPage(p)}
+                      className={`h-9 w-9 rounded-[8px] ${
+                        p === page ? 'bg-[#aa2d00] text-white hover:bg-[#aa2d00]/90' : 'border-[#dddddd] text-[#41454d]'
+                      }`}
+                    >
+                      {p}
+                    </Button>
+                  </span>
+                )
+              })}
             <Button
               variant="outline"
               size="icon"
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="h-9 w-9 rounded-[8px] border-[#dddddd]"
+              className="h-9 w-9 rounded-[8px] border-[#dddddd] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronRight size={16} />
             </Button>

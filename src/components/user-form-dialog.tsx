@@ -51,8 +51,9 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
   const [saving, setSaving] = useState(false)
   const [idError, setIdError] = useState('')
 
-  // Reset form when dialog opens/changes
-  const resetForm = () => {
+  // Reset form whenever dialog opens or editUser changes
+  useEffect(() => {
+    if (!open) return
     if (editUser) {
       setName(editUser.name)
       setUsername(editUser.username)
@@ -71,37 +72,7 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
       setFinancialEntityId(entities.length > 0 ? entities[0].id : '')
     }
     setIdError('')
-  }
-
-  // Reset form when dialog opens
-  useEffect(() => {
-    if (open) {
-      if (editUser) {
-        setName(editUser.name)
-        setUsername(editUser.username)
-        setEmail(editUser.email)
-        setIdType(editUser.idType)
-        setIdentification(editUser.identification)
-        setRole(editUser.role)
-        setFinancialEntityId(editUser.financialEntityId)
-      } else {
-        setName('')
-        setUsername('')
-        setEmail('')
-        setIdType('cedula')
-        setIdentification('')
-        setRole('analyst')
-        setFinancialEntityId(entities.length > 0 ? entities[0].id : '')
-      }
-      setIdError('')
-    }
   }, [open, editUser, entities])
-
-  // Reset when open changes
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) resetForm()
-    onOpenChange(newOpen)
-  }
 
   const validateId = (value: string, type: string): boolean => {
     if (type === 'cedula') {
@@ -155,20 +126,23 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[520px] rounded-[12px] p-0">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[560px] rounded-[12px] p-0 gap-0">
         <DialogHeader className="px-8 pt-8 pb-0">
           <DialogTitle className="text-xl font-medium text-[#181d26]">
             {editUser ? 'Editar Usuario' : 'Agregar Usuario'}
           </DialogTitle>
+          <p className="text-sm text-[#41454d] mt-1">
+            {editUser ? 'Modifique los datos del usuario' : 'Complete la información para registrar un nuevo usuario'}
+          </p>
         </DialogHeader>
 
-        <div className="px-8 py-6 space-y-5">
+        <div className="px-8 py-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
           {/* Financial Entity */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-[#181d26]">Entidad Financiera</Label>
             <Select value={financialEntityId} onValueChange={setFinancialEntityId}>
-              <SelectTrigger className="rounded-[6px] border-[#dddddd] h-11">
+              <SelectTrigger className="rounded-[6px] border-[#dddddd] h-11 focus:border-[#181d26]">
                 <SelectValue placeholder="Seleccione entidad" />
               </SelectTrigger>
               <SelectContent>
@@ -179,22 +153,30 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
             </Select>
           </div>
 
+          <div className="h-px bg-[#dddddd]" />
+
           {/* ID Type */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="text-sm font-medium text-[#181d26]">Tipo de Identificación</Label>
             <RadioGroup value={idType} onValueChange={(v) => { setIdType(v); setIdentification(''); setIdError('') }} className="flex flex-col gap-2">
-              <div className="flex items-center space-x-2">
+              <label htmlFor="u-cedula" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                idType === 'cedula' ? 'border-[#181d26] bg-[#181d26]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="cedula" id="u-cedula" />
-                <Label htmlFor="u-cedula" className="text-sm text-[#333840] cursor-pointer">Cédula 9 dígitos</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <span className={`text-sm ${idType === 'cedula' ? 'text-[#181d26] font-medium' : 'text-[#333840]'}`}>Cédula (9 dígitos)</span>
+              </label>
+              <label htmlFor="u-dimex" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                idType === 'dimex' ? 'border-[#181d26] bg-[#181d26]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="dimex" id="u-dimex" />
-                <Label htmlFor="u-dimex" className="text-sm text-[#333840] cursor-pointer">DIMEX 12 dígitos</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <span className={`text-sm ${idType === 'dimex' ? 'text-[#181d26] font-medium' : 'text-[#333840]'}`}>DIMEX (12 dígitos)</span>
+              </label>
+              <label htmlFor="u-pasaporte" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                idType === 'pasaporte' ? 'border-[#181d26] bg-[#181d26]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="pasaporte" id="u-pasaporte" />
-                <Label htmlFor="u-pasaporte" className="text-sm text-[#333840] cursor-pointer">Pasaporte 30 caracteres</Label>
-              </div>
+                <span className={`text-sm ${idType === 'pasaporte' ? 'text-[#181d26] font-medium' : 'text-[#333840]'}`}>Pasaporte (máx. 30 caracteres)</span>
+              </label>
             </RadioGroup>
           </div>
 
@@ -212,10 +194,12 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
                 idType === 'dimex' ? '000000000000' :
                 'Número de pasaporte'
               }
-              className={`rounded-[6px] h-11 ${idError ? 'border-[#aa2d00]' : 'border-[#dddddd]'}`}
+              className={`rounded-[6px] h-11 ${idError ? 'border-[#aa2d00]' : 'border-[#dddddd]'} focus:border-[#181d26] focus:ring-[#181d26]/10`}
             />
-            {idError && <p className="text-xs text-[#aa2d00]">{idError}</p>}
+            {idError && <p className="text-xs text-[#aa2d00] mt-1">{idError}</p>}
           </div>
+
+          <div className="h-px bg-[#dddddd]" />
 
           {/* Full Name */}
           <div className="space-y-2">
@@ -224,7 +208,7 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nombre completo"
-              className="rounded-[6px] h-11 border-[#dddddd]"
+              className="rounded-[6px] h-11 border-[#dddddd] focus:border-[#181d26] focus:ring-[#181d26]/10"
             />
           </div>
 
@@ -235,19 +219,19 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Nombre de usuario"
-              className="rounded-[6px] h-11 border-[#dddddd]"
+              className="rounded-[6px] h-11 border-[#dddddd] focus:border-[#181d26] focus:ring-[#181d26]/10"
             />
           </div>
 
           {/* Email */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-[#181d26]">Email</Label>
+            <Label className="text-sm font-medium text-[#181d26]">Correo Electrónico</Label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="correo@ejemplo.com"
-              className="rounded-[6px] h-11 border-[#dddddd]"
+              className="rounded-[6px] h-11 border-[#dddddd] focus:border-[#181d26] focus:ring-[#181d26]/10"
             />
           </div>
 
@@ -255,7 +239,7 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
           <div className="space-y-2">
             <Label className="text-sm font-medium text-[#181d26]">Rol</Label>
             <Select value={role} onValueChange={setRole}>
-              <SelectTrigger className="rounded-[6px] border-[#dddddd] h-11">
+              <SelectTrigger className="rounded-[6px] border-[#dddddd] h-11 focus:border-[#181d26]">
                 <SelectValue placeholder="Seleccione rol" />
               </SelectTrigger>
               <SelectContent>
@@ -267,7 +251,7 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
           </div>
         </div>
 
-        <div className="px-8 pb-8 flex items-center justify-end gap-3">
+        <div className="px-8 pb-8 pt-2 flex items-center justify-end gap-3 border-t border-[#dddddd]">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -278,9 +262,9 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
           <Button
             onClick={handleSubmit}
             disabled={saving}
-            className="bg-[#181d26] text-white rounded-[12px] px-6 py-3 h-auto font-medium hover:bg-[#181d26]/90"
+            className="bg-[#181d26] text-white rounded-[12px] px-6 py-3 h-auto font-medium hover:bg-[#0d1218]"
           >
-            {saving ? 'Guardando...' : editUser ? 'Actualizar' : 'Crear Usuario'}
+            {saving ? 'Guardando...' : editUser ? 'Actualizar Usuario' : 'Crear Usuario'}
           </Button>
         </div>
       </DialogContent>

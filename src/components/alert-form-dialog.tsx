@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,7 +46,9 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
   const [saving, setSaving] = useState(false)
   const [idError, setIdError] = useState('')
 
-  const resetForm = () => {
+  // Reset form whenever dialog opens or editAlert changes
+  useEffect(() => {
+    if (!open) return
     if (editAlert) {
       setProfile(editAlert.profile)
       setEconomicAffectation(editAlert.economicAffectation)
@@ -63,12 +65,7 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
       setDescription('')
     }
     setIdError('')
-  }
-
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) resetForm()
-    onOpenChange(newOpen)
-  }
+  }, [open, editAlert])
 
   const validateId = (value: string, type: string): boolean => {
     if (type === 'cedula') {
@@ -140,44 +137,57 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[520px] rounded-[12px] p-0">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[560px] rounded-[12px] p-0 gap-0">
         <DialogHeader className="px-8 pt-8 pb-0">
           <DialogTitle className="text-xl font-medium text-[#181d26]">
             {editAlert ? 'Editar Alerta' : 'Crear Alerta'}
           </DialogTitle>
+          <p className="text-sm text-[#41454d] mt-1">
+            {editAlert ? 'Modifique los datos de la alerta' : 'Complete la información para registrar una nueva alerta'}
+          </p>
         </DialogHeader>
 
-        <div className="px-8 py-6 space-y-5">
+        <div className="px-8 py-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
           {/* Profile */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="text-sm font-medium text-[#181d26]">Perfil</Label>
-            <RadioGroup value={profile} onValueChange={setProfile} className="flex gap-6">
-              <div className="flex items-center space-x-2">
+            <RadioGroup value={profile} onValueChange={setProfile} className="flex gap-4">
+              <label htmlFor="a-receptor" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                profile === 'receptor' ? 'border-[#0a2e0e] bg-[#0a2e0e]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="receptor" id="a-receptor" />
-                <Label htmlFor="a-receptor" className="text-sm text-[#333840] cursor-pointer">Receptor</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <span className={`text-sm ${profile === 'receptor' ? 'text-[#0a2e0e] font-medium' : 'text-[#333840]'}`}>Receptor</span>
+              </label>
+              <label htmlFor="a-victima" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                profile === 'victima' ? 'border-[#aa2d00] bg-[#aa2d00]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="victima" id="a-victima" />
-                <Label htmlFor="a-victima" className="text-sm text-[#333840] cursor-pointer">Víctima</Label>
-              </div>
+                <span className={`text-sm ${profile === 'victima' ? 'text-[#aa2d00] font-medium' : 'text-[#333840]'}`}>Víctima</span>
+              </label>
             </RadioGroup>
           </div>
 
           {/* Economic Affectation */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="text-sm font-medium text-[#181d26]">Afectación Económica</Label>
-            <RadioGroup value={economicAffectation ? 'si' : 'no'} onValueChange={(v) => setEconomicAffectation(v === 'si')} className="flex gap-6">
-              <div className="flex items-center space-x-2">
+            <RadioGroup value={economicAffectation ? 'si' : 'no'} onValueChange={(v) => setEconomicAffectation(v === 'si')} className="flex gap-4">
+              <label htmlFor="a-si" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                economicAffectation ? 'border-[#aa2d00] bg-[#aa2d00]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="si" id="a-si" />
-                <Label htmlFor="a-si" className="text-sm text-[#333840] cursor-pointer">Sí</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <span className={`text-sm ${economicAffectation ? 'text-[#aa2d00] font-medium' : 'text-[#333840]'}`}>Sí</span>
+              </label>
+              <label htmlFor="a-no" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                !economicAffectation ? 'border-[#0a2e0e] bg-[#0a2e0e]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="no" id="a-no" />
-                <Label htmlFor="a-no" className="text-sm text-[#333840] cursor-pointer">No</Label>
-              </div>
+                <span className={`text-sm ${!economicAffectation ? 'text-[#0a2e0e] font-medium' : 'text-[#333840]'}`}>No</span>
+              </label>
             </RadioGroup>
           </div>
+
+          <div className="h-px bg-[#dddddd]" />
 
           {/* Person Name */}
           <div className="space-y-2">
@@ -186,26 +196,32 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               placeholder="Nombre completo de la persona"
-              className="rounded-[6px] h-11 border-[#dddddd]"
+              className="rounded-[6px] h-11 border-[#dddddd] focus:border-[#181d26] focus:ring-[#181d26]/10"
             />
           </div>
 
           {/* Person ID Type */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="text-sm font-medium text-[#181d26]">Tipo de Identificación</Label>
             <RadioGroup value={personIdType} onValueChange={(v) => { setPersonIdType(v); setPersonId(''); setIdError('') }} className="flex flex-col gap-2">
-              <div className="flex items-center space-x-2">
+              <label htmlFor="a-cedula" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                personIdType === 'cedula' ? 'border-[#181d26] bg-[#181d26]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="cedula" id="a-cedula" />
-                <Label htmlFor="a-cedula" className="text-sm text-[#333840] cursor-pointer">Cédula 9 dígitos</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <span className={`text-sm ${personIdType === 'cedula' ? 'text-[#181d26] font-medium' : 'text-[#333840]'}`}>Cédula (9 dígitos)</span>
+              </label>
+              <label htmlFor="a-dimex" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                personIdType === 'dimex' ? 'border-[#181d26] bg-[#181d26]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="dimex" id="a-dimex" />
-                <Label htmlFor="a-dimex" className="text-sm text-[#333840] cursor-pointer">DIMEX 12 dígitos</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <span className={`text-sm ${personIdType === 'dimex' ? 'text-[#181d26] font-medium' : 'text-[#333840]'}`}>DIMEX (12 dígitos)</span>
+              </label>
+              <label htmlFor="a-pasaporte" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
+                personIdType === 'pasaporte' ? 'border-[#181d26] bg-[#181d26]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
+              }`}>
                 <RadioGroupItem value="pasaporte" id="a-pasaporte" />
-                <Label htmlFor="a-pasaporte" className="text-sm text-[#333840] cursor-pointer">Pasaporte 30 caracteres</Label>
-              </div>
+                <span className={`text-sm ${personIdType === 'pasaporte' ? 'text-[#181d26] font-medium' : 'text-[#333840]'}`}>Pasaporte (máx. 30 caracteres)</span>
+              </label>
             </RadioGroup>
           </div>
 
@@ -223,9 +239,9 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
                 personIdType === 'dimex' ? '000000000000' :
                 'Número de pasaporte'
               }
-              className={`rounded-[6px] h-11 ${idError ? 'border-[#aa2d00]' : 'border-[#dddddd]'}`}
+              className={`rounded-[6px] h-11 ${idError ? 'border-[#aa2d00] focus:border-[#aa2d00]' : 'border-[#dddddd] focus:border-[#181d26]'} focus:ring-[#181d26]/10`}
             />
-            {idError && <p className="text-xs text-[#aa2d00]">{idError}</p>}
+            {idError && <p className="text-xs text-[#aa2d00] mt-1">{idError}</p>}
           </div>
 
           {/* Description */}
@@ -235,12 +251,12 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describa el incidente en detalle..."
-              className="rounded-[6px] border-[#dddddd] min-h-[100px] resize-none"
+              className="rounded-[6px] border-[#dddddd] min-h-[120px] resize-none focus:border-[#181d26] focus:ring-[#181d26]/10"
             />
           </div>
         </div>
 
-        <div className="px-8 pb-8 flex items-center justify-end gap-3">
+        <div className="px-8 pb-8 pt-2 flex items-center justify-end gap-3 border-t border-[#dddddd]">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -251,9 +267,9 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
           <Button
             onClick={handleSubmit}
             disabled={saving}
-            className="bg-[#181d26] text-white rounded-[12px] px-6 py-3 h-auto font-medium hover:bg-[#181d26]/90"
+            className="bg-[#181d26] text-white rounded-[12px] px-6 py-3 h-auto font-medium hover:bg-[#0d1218]"
           >
-            {saving ? 'Guardando...' : editAlert ? 'Actualizar' : 'Crear Alerta'}
+            {saving ? 'Guardando...' : editAlert ? 'Actualizar Alerta' : 'Crear Alerta'}
           </Button>
         </div>
       </DialogContent>

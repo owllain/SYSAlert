@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -11,9 +12,28 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { AlertFormDialog } from '@/components/alert-form-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { AlertDetailDialog } from '@/components/alert-detail-dialog'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  MoreHorizontal,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
+  ShieldAlert,
+  DollarSign,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
 
@@ -31,12 +51,19 @@ interface Alert {
   financialEntity: { id: string; name: string; code: string }
   creator: { id: string; name: string; username: string; financialEntity: { name: string } }
   createdAt: string
+  updatedAt: string
 }
 
 const idTypeLabels: Record<string, string> = {
   cedula: 'Cédula',
   dimex: 'DIMEX',
   pasaporte: 'Pasaporte',
+}
+
+const statusLabels: Record<string, string> = {
+  active: 'Activa',
+  resolved: 'Resuelta',
+  dismissed: 'Descartada',
 }
 
 export function MyAlertsView() {
@@ -46,6 +73,9 @@ export function MyAlertsView() {
   const [formOpen, setFormOpen] = useState(false)
   const [editAlert, setEditAlert] = useState<Alert | null>(null)
   const [deleteAlert, setDeleteAlert] = useState<Alert | null>(null)
+  const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [changingStatus, setChangingStatus] = useState<string | null>(null)
 
   const fetchAlerts = useCallback(async () => {
     if (!currentUser) return
@@ -64,6 +94,16 @@ export function MyAlertsView() {
     fetchAlerts()
   }, [fetchAlerts])
 
+  const filteredAlerts = useMemo(() => {
+    if (!searchQuery.trim()) return alerts
+    const q = searchQuery.toLowerCase().trim()
+    return alerts.filter(
+      (a) =>
+        a.personName.toLowerCase().includes(q) ||
+        a.personId.toLowerCase().includes(q)
+    )
+  }, [alerts, searchQuery])
+
   const handleDelete = async () => {
     if (!deleteAlert) return
     try {
@@ -81,6 +121,28 @@ export function MyAlertsView() {
     }
   }
 
+  const handleStatusChange = async (alertId: string, newStatus: 'resolved' | 'dismissed' | 'active') => {
+    setChangingStatus(alertId)
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: alertId, status: newStatus }),
+      })
+      if (res.ok) {
+        toast.success(`Alerta cambiada a "${statusLabels[newStatus]}"`)
+        fetchAlerts()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Error al cambiar estado')
+      }
+    } catch {
+      toast.error('Error al cambiar estado')
+    } finally {
+      setChangingStatus(null)
+    }
+  }
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr)
     return d.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -91,7 +153,7 @@ export function MyAlertsView() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-12">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-medium text-[#181d26]">Mis Alertas</h2>
           <p className="text-[#41454d] mt-1">Gestión de alertas creadas por usted</p>
@@ -105,6 +167,19 @@ export function MyAlertsView() {
         </Button>
       </div>
 
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nombre o identificación..."
+            className="pl-9 h-10 rounded-[8px] border-[#dddddd] bg-white focus:border-[#181d26] focus:ring-[#181d26]/10 text-sm"
+          />
+        </div>
+      </div>
+
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
@@ -112,7 +187,8 @@ export function MyAlertsView() {
               <TableHead className="text-[#41454d] font-medium">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium">Persona</TableHead>
               <TableHead className="text-[#41454d] font-medium hidden md:table-cell">Identificación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Descripción</TableHead>
+              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Afectación</TableHead>
+              <TableHead className="text-[#41454d] font-medium hidden xl:table-cell">Descripción</TableHead>
               <TableHead className="text-[#41454d] font-medium">Estado</TableHead>
               <TableHead className="text-[#41454d] font-medium hidden sm:table-cell">Fecha</TableHead>
               <TableHead className="text-[#41454d] font-medium text-right">Acciones</TableHead>
@@ -121,28 +197,40 @@ export function MyAlertsView() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-[#41454d]">
+                <TableCell colSpan={8} className="text-center py-12 text-[#41454d]">
                   Cargando...
                 </TableCell>
               </TableRow>
-            ) : alerts.length === 0 ? (
+            ) : filteredAlerts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-16 text-[#41454d]">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-[#f8fafc] flex items-center justify-center">
-                      <span className="text-2xl">🔔</span>
+                <TableCell colSpan={8} className="text-center py-20 text-[#41454d]">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
+                      <ShieldAlert size={28} className="text-[#41454d]/40" />
                     </div>
-                    <p>No tiene alertas registradas</p>
-                    <p className="text-xs text-[#41454d]">Cree su primera alerta usando el botón superior</p>
+                    <div>
+                      <p className="font-medium text-[#181d26]">
+                        {searchQuery ? 'No se encontraron alertas' : 'No tiene alertas registradas'}
+                      </p>
+                      <p className="text-sm text-[#41454d] mt-1">
+                        {searchQuery
+                          ? 'Intente con otro término de búsqueda'
+                          : 'Cree su primera alerta usando el botón superior'}
+                      </p>
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              alerts.map((alert) => (
-                <TableRow key={alert.id} className="border-b border-[#dddddd] last:border-0">
+              filteredAlerts.map((alert) => (
+                <TableRow
+                  key={alert.id}
+                  className="border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors"
+                  onClick={() => setDetailAlert(alert)}
+                >
                   <TableCell>
                     <Badge
-                      className={`rounded-[6px] font-normal ${
+                      className={`rounded-[6px] font-normal text-xs ${
                         alert.profile === 'victima'
                           ? 'bg-[#aa2d00] text-white'
                           : 'bg-[#0a2e0e] text-white'
@@ -154,30 +242,45 @@ export function MyAlertsView() {
                   <TableCell className="font-medium text-[#181d26]">{alert.personName}</TableCell>
                   <TableCell className="text-[#41454d] hidden md:table-cell">
                     <span className="font-mono text-xs">{alert.personId}</span>
-                    <span className="text-xs text-[#41454d] ml-1">({idTypeLabels[alert.personIdType]})</span>
+                    <span className="text-[10px] text-[#41454d] ml-1.5 bg-[#f8fafc] px-1.5 py-0.5 rounded-[4px] border border-[#dddddd]">
+                      {idTypeLabels[alert.personIdType]}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-[#41454d] hidden lg:table-cell text-sm max-w-[200px]">
-                    {truncate(alert.description, 60)}
+                  <TableCell className="hidden lg:table-cell">
+                    {alert.economicAffectation ? (
+                      <Badge className="rounded-[6px] text-xs font-normal bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]">
+                        <DollarSign size={11} className="mr-0.5" />
+                        Sí
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-[#41454d]">No</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-[#41454d] hidden xl:table-cell text-sm max-w-[200px]">
+                    {truncate(alert.description, 50)}
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant="secondary"
-                      className={`rounded-[6px] font-normal ${
+                      className={`rounded-[6px] font-normal text-xs ${
                         alert.status === 'active'
-                          ? 'bg-[#0a2e0e] text-white'
+                          ? 'bg-[#0a2e0e]/10 text-[#0a2e0e] border border-[#0a2e0e]/20'
                           : alert.status === 'resolved'
                           ? 'bg-[#f8fafc] text-[#41454d] border border-[#dddddd]'
-                          : 'bg-[#f5e9d4] text-[#181d26]'
+                          : 'bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]'
                       }`}
                     >
-                      {alert.status === 'active' ? 'Activa' : alert.status === 'resolved' ? 'Resuelta' : 'Descartada'}
+                      {statusLabels[alert.status] || alert.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-[#41454d] text-sm hidden sm:table-cell">
+                  <TableCell className="text-[#41454d] text-sm hidden sm:table-cell whitespace-nowrap">
                     {formatDate(alert.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div
+                      className="flex items-center justify-end gap-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Button
                         variant="ghost"
                         size="icon"
@@ -194,6 +297,63 @@ export function MyAlertsView() {
                       >
                         <Trash2 size={14} />
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
+                            disabled={changingStatus === alert.id}
+                          >
+                            <MoreHorizontal size={14} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-[8px]">
+                          {alert.status === 'active' && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(alert.id, 'resolved')}
+                                className="text-sm cursor-pointer"
+                              >
+                                <CheckCircle2 size={14} className="mr-2 text-[#0a2e0e]" />
+                                Marcar como Resuelta
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(alert.id, 'dismissed')}
+                                className="text-sm cursor-pointer"
+                              >
+                                <XCircle size={14} className="mr-2 text-[#aa2d00]" />
+                                Descartar Alerta
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {alert.status === 'resolved' && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(alert.id, 'active')}
+                              className="text-sm cursor-pointer"
+                            >
+                              <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
+                              Reactivar Alerta
+                            </DropdownMenuItem>
+                          )}
+                          {alert.status === 'dismissed' && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(alert.id, 'active')}
+                              className="text-sm cursor-pointer"
+                            >
+                              <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
+                              Reactivar Alerta
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDetailAlert(alert)}
+                            className="text-sm cursor-pointer"
+                          >
+                            Ver Detalle
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -202,6 +362,13 @@ export function MyAlertsView() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Result count */}
+      {searchQuery && filteredAlerts.length > 0 && (
+        <p className="text-xs text-[#41454d] mt-3">
+          {filteredAlerts.length} resultado{filteredAlerts.length !== 1 ? 's' : ''} para &quot;{searchQuery}&quot;
+        </p>
+      )}
 
       {currentUser && (
         <AlertFormDialog
@@ -220,6 +387,13 @@ export function MyAlertsView() {
         onConfirm={handleDelete}
         title="Eliminar Alerta"
         description={`¿Está seguro de que desea eliminar la alerta para "${deleteAlert?.personName}"? Esta acción no se puede deshacer.`}
+      />
+
+      <AlertDetailDialog
+        open={!!detailAlert}
+        onOpenChange={(open) => !open && setDetailAlert(null)}
+        alert={detailAlert}
+        onStatusChange={fetchAlerts}
       />
     </div>
   )

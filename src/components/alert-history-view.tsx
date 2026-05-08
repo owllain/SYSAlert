@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -12,7 +13,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { AlertDetailDialog } from '@/components/alert-detail-dialog'
+import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays } from 'lucide-react'
 
 interface Entity {
   id: string
@@ -23,6 +25,7 @@ interface Entity {
 interface Alert {
   id: string
   profile: string
+  economicAffectation: boolean
   personName: string
   personId: string
   personIdType: string
@@ -31,6 +34,13 @@ interface Alert {
   financialEntity: { id: string; name: string; code: string }
   creator: { id: string; name: string; username: string; financialEntity: { name: string } }
   createdAt: string
+  updatedAt: string
+}
+
+const idTypeLabels: Record<string, string> = {
+  cedula: 'Cédula',
+  dimex: 'DIMEX',
+  pasaporte: 'Pasaporte',
 }
 
 const PAGE_SIZE = 10
@@ -42,6 +52,8 @@ export function AlertHistoryView() {
   const [filterProfile, setFilterProfile] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
 
   const fetchEntities = useCallback(async () => {
     try {
@@ -71,9 +83,19 @@ export function AlertHistoryView() {
     fetchAlerts()
   }, [fetchEntities, fetchAlerts])
 
-  const filteredAlerts = alerts
+  const baseFilteredAlerts = alerts
     .filter(a => filterEntityId === 'all' || a.financialEntityId === filterEntityId)
     .filter(a => filterProfile === 'all' || a.profile === filterProfile)
+
+  const filteredAlerts = useMemo(() => {
+    if (!searchQuery.trim()) return baseFilteredAlerts
+    const q = searchQuery.toLowerCase().trim()
+    return baseFilteredAlerts.filter(
+      (a) =>
+        a.personName.toLowerCase().includes(q) ||
+        a.personId.toLowerCase().includes(q)
+    )
+  }, [baseFilteredAlerts, searchQuery])
 
   const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / PAGE_SIZE))
   const paginatedAlerts = filteredAlerts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -87,17 +109,17 @@ export function AlertHistoryView() {
     str.length > len ? str.substring(0, len) + '...' : str
 
   // Reset page when filters change
-  useEffect(() => { setPage(1) }, [filterEntityId, filterProfile])
+  useEffect(() => { setPage(1) }, [filterEntityId, filterProfile, searchQuery])
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-12 gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-medium text-[#181d26]">Historial de Alertas</h2>
           <p className="text-[#41454d] mt-1">Alertas del mes en curso</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Select value={filterProfile} onValueChange={setFilterProfile}>
             <SelectTrigger className="w-[160px] rounded-[6px] border-[#dddddd] h-10">
               <SelectValue placeholder="Perfil" />
@@ -123,6 +145,19 @@ export function AlertHistoryView() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nombre o identificación..."
+            className="pl-9 h-10 rounded-[8px] border-[#dddddd] bg-white focus:border-[#181d26] focus:ring-[#181d26]/10 text-sm"
+          />
+        </div>
+      </div>
+
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
@@ -131,7 +166,8 @@ export function AlertHistoryView() {
               <TableHead className="text-[#41454d] font-medium">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium">Persona</TableHead>
               <TableHead className="text-[#41454d] font-medium hidden md:table-cell">Identificación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Descripción</TableHead>
+              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Afectación</TableHead>
+              <TableHead className="text-[#41454d] font-medium hidden xl:table-cell">Descripción</TableHead>
               <TableHead className="text-[#41454d] font-medium hidden sm:table-cell">Creada por</TableHead>
               <TableHead className="text-[#41454d] font-medium">Fecha</TableHead>
             </TableRow>
@@ -139,29 +175,41 @@ export function AlertHistoryView() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-[#41454d]">
+                <TableCell colSpan={8} className="text-center py-12 text-[#41454d]">
                   Cargando...
                 </TableCell>
               </TableRow>
             ) : paginatedAlerts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-16 text-[#41454d]">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 rounded-full bg-[#f8fafc] flex items-center justify-center">
-                      <span className="text-3xl">📅</span>
+                <TableCell colSpan={8} className="text-center py-20 text-[#41454d]">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
+                      <CalendarDays size={28} className="text-[#41454d]/40" />
                     </div>
-                    <p className="font-medium">No hay alertas este mes</p>
-                    <p className="text-xs text-[#41454d]">Las alertas del mes aparecerán aquí</p>
+                    <div>
+                      <p className="font-medium text-[#181d26]">
+                        {searchQuery ? 'No se encontraron alertas' : 'No hay alertas este mes'}
+                      </p>
+                      <p className="text-sm text-[#41454d] mt-1">
+                        {searchQuery
+                          ? 'Intente con otro término de búsqueda'
+                          : 'Las alertas del mes aparecerán aquí'}
+                      </p>
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               paginatedAlerts.map((alert) => (
-                <TableRow key={alert.id} className="border-b border-[#dddddd] last:border-0">
+                <TableRow
+                  key={alert.id}
+                  className="border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors"
+                  onClick={() => setDetailAlert(alert)}
+                >
                   <TableCell className="text-[#41454d] text-sm">{alert.financialEntity?.name || '—'}</TableCell>
                   <TableCell>
                     <Badge
-                      className={`rounded-[6px] font-normal ${
+                      className={`rounded-[6px] font-normal text-xs ${
                         alert.profile === 'victima'
                           ? 'bg-[#aa2d00] text-white'
                           : 'bg-[#0a2e0e] text-white'
@@ -173,9 +221,22 @@ export function AlertHistoryView() {
                   <TableCell className="font-medium text-[#181d26]">{alert.personName}</TableCell>
                   <TableCell className="text-[#41454d] hidden md:table-cell">
                     <span className="font-mono text-xs">{alert.personId}</span>
+                    <span className="text-[10px] text-[#41454d] ml-1.5 bg-[#f8fafc] px-1.5 py-0.5 rounded-[4px] border border-[#dddddd]">
+                      {idTypeLabels[alert.personIdType]}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-[#41454d] hidden lg:table-cell text-sm max-w-[200px]">
-                    {truncate(alert.description, 60)}
+                  <TableCell className="hidden lg:table-cell">
+                    {alert.economicAffectation ? (
+                      <Badge className="rounded-[6px] text-xs font-normal bg-[#f5e9d4] text-[#181d26] border border-[#e8d5b8]">
+                        <DollarSign size={11} className="mr-0.5" />
+                        Sí
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-[#41454d]">No</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-[#41454d] hidden xl:table-cell text-sm max-w-[200px]">
+                    {truncate(alert.description, 50)}
                   </TableCell>
                   <TableCell className="text-[#41454d] text-sm hidden sm:table-cell">
                     {alert.creator?.name || '—'}
@@ -189,6 +250,13 @@ export function AlertHistoryView() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Result count */}
+      {searchQuery && filteredAlerts.length > 0 && (
+        <p className="text-xs text-[#41454d] mt-3">
+          {filteredAlerts.length} resultado{filteredAlerts.length !== 1 ? 's' : ''} para &quot;{searchQuery}&quot;
+        </p>
+      )}
 
       {/* Pagination */}
       {filteredAlerts.length > PAGE_SIZE && (
@@ -231,6 +299,12 @@ export function AlertHistoryView() {
           </div>
         </div>
       )}
+
+      <AlertDetailDialog
+        open={!!detailAlert}
+        onOpenChange={(open) => !open && setDetailAlert(null)}
+        alert={detailAlert}
+      />
     </div>
   )
 }

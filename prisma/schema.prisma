@@ -28,8 +28,20 @@ model User {
   financialEntityId String
   financialEntity  FinancialEntity  @relation(fields: [financialEntityId], references: [id])
   alerts           Alert[]
+  auditLogs        AuditLog[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // "create_alert", "update_alert", "delete_alert", "create_user", "update_user", "delete_user", "status_change"
+  entityType String  // "alert" or "user"
+  entityId  String
+  details   String   // JSON string with change details
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }
 
 model Alert {

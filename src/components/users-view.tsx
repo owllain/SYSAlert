@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,6 +17,7 @@ import { UserFormDialog } from '@/components/user-form-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 import { Plus, Pencil, Trash2, Search, Users, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface Entity {
   id: string
@@ -54,6 +56,7 @@ const entityColors: Record<string, string> = {
 }
 
 export function UsersView() {
+  const { currentUser } = useAppStore()
   const [users, setUsers] = useState<User[]>([])
   const [entities, setEntities] = useState<Entity[]>([])
   const [loading, setLoading] = useState(true)
@@ -92,7 +95,7 @@ export function UsersView() {
   const handleDelete = async () => {
     if (!deleteUser) return
     try {
-      const res = await fetch(`/api/users?id=${deleteUser.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/users?id=${deleteUser.id}&deletedBy=${currentUser?.id || ''}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Usuario eliminado correctamente')
         fetchUsers()
@@ -132,7 +135,7 @@ export function UsersView() {
         </div>
         <Button
           onClick={() => { setEditUser(null); setFormOpen(true) }}
-          className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#0d1218]"
+          className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#0d1218] active:scale-[0.98] transition-transform"
         >
           <Plus size={18} className="mr-2" />
           Agregar Usuario
@@ -186,27 +189,31 @@ export function UsersView() {
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/50">
-              <TableHead className="text-[#41454d] font-medium">Nombre</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Usuario</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden md:table-cell">Correo</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Tipo ID</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Identificación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden sm:table-cell">Entidad</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Rol</TableHead>
-              <TableHead className="text-[#41454d] font-medium text-right">Acciones</TableHead>
+            <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Nombre</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Usuario</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden md:table-cell">Correo</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Tipo ID</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Identificación</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Entidad</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Rol</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-[#41454d]">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#181d26] border-t-transparent rounded-full animate-spin" />
-                    Cargando...
-                  </div>
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                  <TableCell><div className="flex items-center gap-3"><Skeleton className="h-8 w-8 rounded-full" /><Skeleton className="h-4 w-24" /></div></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                </TableRow>
+              ))
             ) : filteredUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-16 text-[#41454d]">
@@ -224,8 +231,8 @@ export function UsersView() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map((user) => (
-                <TableRow key={user.id} className="border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/50 transition-colors cursor-default">
+              filteredUsers.map((user, idx) => (
+                <TableRow key={user.id} className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/50 transition-colors cursor-default ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div

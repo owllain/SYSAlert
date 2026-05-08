@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore, type NavTab } from '@/lib/store'
-import { Home, Users, Bell, Clock, Calendar, ChevronDown, ChevronRight, Shield, LogOut } from 'lucide-react'
+import { Home, Users, Bell, Clock, Calendar, ChevronDown, ChevronRight, Shield, LogOut, ScrollText } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 const entityDotColors: Record<string, string> = {
@@ -58,15 +58,14 @@ export function AppSidebar() {
   const navItems: { id: NavTab; label: string; icon: React.ElementType; section?: string; badge?: number }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'users', label: 'Usuarios y Permisos', icon: Users },
+    { id: 'audit-log', label: 'Registro de Actividad', icon: ScrollText },
     { id: 'my-alerts', label: 'Mis Alertas', icon: Bell, section: 'alerts', badge: alertCount.myAlerts },
     { id: 'latest-alerts', label: 'Últimas Alertas', icon: Clock, section: 'alerts', badge: alertCount.latestAlerts },
     { id: 'alert-history', label: 'Historial Alertas', icon: Calendar, section: 'alerts' },
   ]
 
-  if (!sidebarOpen) return null
-
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[256px] bg-white border-r border-[#dddddd] z-40 flex flex-col lg:relative lg:z-auto">
+    <aside className={`fixed left-0 top-0 bottom-0 w-[256px] bg-white border-r border-[#dddddd] z-40 flex flex-col lg:relative lg:z-auto transform transition-transform duration-300 ease-in-out ${!sidebarOpen ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}`}>
       {/* Logo area */}
       <div className="h-[64px] flex items-center px-5 border-b border-[#dddddd] shrink-0">
         <div className="flex items-center gap-3">

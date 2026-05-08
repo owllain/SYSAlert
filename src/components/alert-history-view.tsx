@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -14,7 +15,9 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { AlertDetailDialog } from '@/components/alert-detail-dialog'
-import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays, Bell, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays, Bell, CheckCircle2, X, CheckCircle, XCircle } from 'lucide-react'
+import { useAppStore } from '@/lib/store'
+import { toast } from 'sonner'
 
 interface Entity {
   id: string
@@ -47,14 +50,18 @@ const idTypeLabels: Record<string, string> = {
 const PAGE_SIZE = 10
 
 export function AlertHistoryView() {
+  const { currentUser } = useAppStore()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [entities, setEntities] = useState<Entity[]>([])
   const [filterEntityId, setFilterEntityId] = useState<string>('all')
   const [filterProfile, setFilterProfile] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   const fetchEntities = useCallback(async () => {
     try {
@@ -87,6 +94,7 @@ export function AlertHistoryView() {
   const baseFilteredAlerts = alerts
     .filter(a => filterEntityId === 'all' || a.financialEntityId === filterEntityId)
     .filter(a => filterProfile === 'all' || a.profile === filterProfile)
+    .filter(a => filterStatus === 'all' || a.status === filterStatus)
 
   const filteredAlerts = useMemo(() => {
     if (!searchQuery.trim()) return baseFilteredAlerts
@@ -98,7 +106,7 @@ export function AlertHistoryView() {
     )
   }, [baseFilteredAlerts, searchQuery])
 
-  // Statistics (based on all monthly alerts before search filter, but after entity/profile filters)
+  // Statistics (based on all monthly alerts before search filter, but after entity/profile/status filters)
   const totalPeriod = baseFilteredAlerts.length
   const economicAffectationCount = baseFilteredAlerts.filter(a => a.economicAffectation).length
   const victimaCount = baseFilteredAlerts.filter(a => a.profile === 'victima').length
@@ -116,7 +124,69 @@ export function AlertHistoryView() {
     str.length > len ? str.substring(0, len) + '...' : str
 
   // Reset page when filters change
-  useEffect(() => { setPage(1) }, [filterEntityId, filterProfile, searchQuery])
+  useEffect(() => { setPage(1) }, [filterEntityId, filterProfile, filterStatus, searchQuery])
+
+  // Bulk selection logic
+  const allPageSelected = paginatedAlerts.length > 0 && paginatedAlerts.every(a => selectedIds.has(a.id))
+  const somePageSelected = paginatedAlerts.some(a => selectedIds.has(a.id)) && !allPageSelected
+
+  const toggleSelectAll = () => {
+    if (allPageSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        paginatedAlerts.forEach(a => next.delete(a.id))
+        return next
+      })
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        paginatedAlerts.forEach(a => next.add(a.id))
+        return next
+      })
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const clearSelection = () => setSelectedIds(new Set())
+
+  const handleBulkStatus = async (status: string) => {
+    if (selectedIds.size === 0) return
+    setBulkLoading(true)
+    try {
+      const res = await fetch('/api/alerts/bulk', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alertIds: Array.from(selectedIds),
+          status,
+          updatedBy: currentUser?.id,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(`${data.updated} alerta${data.updated !== 1 ? 's' : ''} ${status === 'resolved' ? 'resuelta' + (data.updated !== 1 ? 's' : '') : 'descartada' + (data.updated !== 1 ? 's' : '')}`)
+        setSelectedIds(new Set())
+        await fetchAlerts()
+      } else {
+        toast.error('Error al actualizar alertas')
+      }
+    } catch {
+      toast.error('Error al actualizar alertas')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
 
   return (
     <div>
@@ -127,6 +197,18 @@ export function AlertHistoryView() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[150px] rounded-[6px] border-[#dddddd] h-10">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="active">Activa</SelectItem>
+              <SelectItem value="resolved">Resuelta</SelectItem>
+              <SelectItem value="dismissed">Descartada</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={filterProfile} onValueChange={setFilterProfile}>
             <SelectTrigger className="w-[160px] rounded-[6px] border-[#dddddd] h-10">
               <SelectValue placeholder="Perfil" />
@@ -209,6 +291,19 @@ export function AlertHistoryView() {
         <Table>
           <TableHeader>
             <TableRow className="border-b border-[#dddddd]">
+              <TableHead className="w-[40px] px-3">
+                <Checkbox
+                  checked={allPageSelected}
+                  ref={(el) => {
+                    if (el) {
+                      // @ts-expect-error radix checkbox ref
+                      el.dataset.state = somePageSelected ? 'indeterminate' : allPageSelected ? 'checked' : 'unchecked'
+                    }
+                  }}
+                  onCheckedChange={toggleSelectAll}
+                  className="rounded-[4px]"
+                />
+              </TableHead>
               <TableHead className="text-[#41454d] font-medium">Entidad</TableHead>
               <TableHead className="text-[#41454d] font-medium">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium">Persona</TableHead>
@@ -222,13 +317,13 @@ export function AlertHistoryView() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-[#41454d]">
+                <TableCell colSpan={9} className="text-center py-12 text-[#41454d]">
                   Cargando...
                 </TableCell>
               </TableRow>
             ) : paginatedAlerts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-20 text-[#41454d]">
+                <TableCell colSpan={9} className="text-center py-20 text-[#41454d]">
                   <div className="flex flex-col items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
                       <CalendarDays size={28} className="text-[#41454d]/40" />
@@ -250,9 +345,16 @@ export function AlertHistoryView() {
               paginatedAlerts.map((alert) => (
                 <TableRow
                   key={alert.id}
-                  className="border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors"
+                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors ${selectedIds.has(alert.id) ? 'bg-[#f8fafc]' : ''}`}
                   onClick={() => setDetailAlert(alert)}
                 >
+                  <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(alert.id)}
+                      onCheckedChange={() => toggleSelect(alert.id)}
+                      className="rounded-[4px]"
+                    />
+                  </TableCell>
                   <TableCell className="text-[#41454d] text-sm">{alert.financialEntity?.name || '—'}</TableCell>
                   <TableCell>
                     <Badge
@@ -344,6 +446,40 @@ export function AlertHistoryView() {
               <ChevronRight size={16} />
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Floating Action Bar for Bulk Operations */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#181d26] text-white rounded-[12px] px-6 py-3 shadow-xl flex items-center gap-4 z-50">
+          <span className="text-sm font-medium">
+            {selectedIds.size} alerta{selectedIds.size !== 1 ? 's' : ''} seleccionada{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <div className="h-6 w-px bg-white/20" />
+          <button
+            onClick={() => handleBulkStatus('resolved')}
+            disabled={bulkLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-medium bg-[#0a2e0e] hover:bg-[#0a2e0e]/80 transition-colors disabled:opacity-50"
+          >
+            <CheckCircle size={14} />
+            Resolver seleccionadas
+          </button>
+          <button
+            onClick={() => handleBulkStatus('dismissed')}
+            disabled={bulkLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-medium bg-[#aa2d00] hover:bg-[#aa2d00]/80 transition-colors disabled:opacity-50"
+          >
+            <XCircle size={14} />
+            Descartar seleccionadas
+          </button>
+          <div className="h-6 w-px bg-white/20" />
+          <button
+            onClick={clearSelection}
+            className="flex items-center gap-1 text-xs text-white/70 hover:text-white transition-colors"
+          >
+            <X size={14} />
+            Cancelar
+          </button>
         </div>
       )}
 

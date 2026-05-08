@@ -43,7 +43,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, username, email, identification, idType, role, financialEntityId } = body;
+    const { name, username, email, identification, idType, role, financialEntityId, createdBy } = body;
 
     if (!name || !username || !email || !identification || !idType || !financialEntityId) {
       return NextResponse.json(
@@ -108,6 +108,28 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create audit log entry (non-blocking)
+    if (createdBy) {
+      try {
+        await db.auditLog.create({
+          data: {
+            action: 'create_user',
+            entityType: 'user',
+            entityId: user.id,
+            details: JSON.stringify({
+              name: user.name,
+              username: user.username,
+              role: user.role,
+              financialEntity: entity.name,
+            }),
+            userId: createdBy,
+          },
+        });
+      } catch (auditError) {
+        console.warn('Audit log creation failed:', auditError);
+      }
+    }
+
     return NextResponse.json(user, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
@@ -122,7 +144,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, username, email, identification, idType, role, financialEntityId } = body;
+    const { id, name, username, email, identification, idType, role, financialEntityId, updatedBy } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -204,6 +226,27 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    // Create audit log entry (non-blocking)
+    if (updatedBy) {
+      try {
+        await db.auditLog.create({
+          data: {
+            action: 'update_user',
+            entityType: 'user',
+            entityId: id,
+            details: JSON.stringify({
+              name: existing.name,
+              username: existing.username,
+              updatedFields: Object.keys(updateData),
+            }),
+            userId: updatedBy,
+          },
+        });
+      } catch (auditError) {
+        console.warn('Audit log creation failed:', auditError);
+      }
+    }
+
     return NextResponse.json(user);
   } catch (error) {
     console.error('Error updating user:', error);
@@ -219,6 +262,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const deletedBy = searchParams.get('deletedBy');
 
     if (!id) {
       return NextResponse.json(
@@ -236,6 +280,27 @@ export async function DELETE(request: NextRequest) {
     }
 
     await db.user.delete({ where: { id } });
+
+    // Create audit log entry (non-blocking)
+    if (deletedBy) {
+      try {
+        await db.auditLog.create({
+          data: {
+            action: 'delete_user',
+            entityType: 'user',
+            entityId: id,
+            details: JSON.stringify({
+              name: existing.name,
+              username: existing.username,
+              role: existing.role,
+            }),
+            userId: deletedBy,
+          },
+        });
+      } catch (auditError) {
+        console.warn('Audit log creation failed:', auditError);
+      }
+    }
 
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {

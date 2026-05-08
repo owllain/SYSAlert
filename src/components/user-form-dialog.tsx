@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { useAppStore } from '@/lib/store'
 
 interface Entity {
   id: string
@@ -41,6 +42,7 @@ interface UserFormDialogProps {
 }
 
 export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved }: UserFormDialogProps) {
+  const { currentUser } = useAppStore()
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -105,7 +107,7 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
 
     setSaving(true)
     try {
-      const body = { name, username, email, idType, identification, role, financialEntityId }
+      const body = { name, username, email, idType, identification, role, financialEntityId, createdBy: currentUser?.id, updatedBy: currentUser?.id }
       const res = editUser
         ? await fetch('/api/users', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editUser.id, ...body }) })
         : await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })

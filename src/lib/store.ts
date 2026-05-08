@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type NavTab = 'dashboard' | 'users' | 'my-alerts' | 'latest-alerts' | 'alert-history'
+export type NavTab = 'dashboard' | 'users' | 'audit-log' | 'my-alerts' | 'latest-alerts' | 'alert-history'
 
 interface CurrentUser {
   id: string

@@ -24,6 +24,7 @@ import {
   DollarSign,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAppStore } from '@/lib/store'
 
 interface Alert {
   id: string
@@ -63,6 +64,7 @@ const statusLabels: Record<string, string> = {
 
 export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }: AlertDetailDialogProps) {
   const [changingStatus, setChangingStatus] = useState(false)
+  const { currentUser } = useAppStore()
 
   if (!alert) return null
 
@@ -72,7 +74,7 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
       const res = await fetch('/api/alerts', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: alert.id, status: newStatus }),
+        body: JSON.stringify({ id: alert.id, status: newStatus, updatedBy: currentUser?.id }),
       })
       if (res.ok) {
         toast.success(`Alerta cambiada a "${statusLabels[newStatus]}" correctamente`)

@@ -73,6 +73,8 @@ const entityColors: Record<string, string> = {
   BNC: '#181d26',
 }
 
+type ChartRange = 7 | 30 | 90
+
 export function DashboardView() {
   const { setActiveTab, currentUser } = useAppStore()
   const [stats, setStats] = useState<DashboardStats>({
@@ -88,6 +90,7 @@ export function DashboardView() {
   const [trendData, setTrendData] = useState<TrendData[]>([])
   const [distributionData, setDistributionData] = useState<DistributionData[]>([])
   const [loading, setLoading] = useState(true)
+  const [chartRange, setChartRange] = useState<ChartRange>(7)
 
   useEffect(() => {
     async function fetchStats() {
@@ -99,7 +102,7 @@ export function DashboardView() {
           fetch('/api/alerts'),
           fetch('/api/alerts'),
           fetch('/api/entities'),
-          fetch('/api/alerts?days=7'),
+          fetch(`/api/alerts?days=${chartRange}`),
         ])
         const users = await usersRes.json()
         const today = await todayRes.json()
@@ -157,9 +160,10 @@ export function DashboardView() {
           setEntityBreakdown(breakdown)
         }
 
-        // Trend data: daily alert count for past 7 days
+        // Trend data: daily alert count for selected range
         const days: TrendData[] = []
-        for (let i = 6; i >= 0; i--) {
+        const rangeDays = chartRange
+        for (let i = rangeDays - 1; i >= 0; i--) {
           const d = new Date()
           d.setDate(d.getDate() - i)
           d.setHours(0, 0, 0, 0)
@@ -169,9 +173,24 @@ export function DashboardView() {
             const ad = new Date(a.createdAt)
             return ad >= d && ad <= dEnd
           }).length
+
+          let label: string
+          if (rangeDays <= 7) {
+            label = d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric' })
+          } else if (rangeDays <= 30) {
+            label = d.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })
+          } else {
+            // For 90 days, show weekly labels to avoid crowding
+            if (i % 7 === 0 || i === 0) {
+              label = d.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })
+            } else {
+              label = ''
+            }
+          }
+
           days.push({
             date: d.toISOString().split('T')[0],
-            label: d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric' }),
+            label,
             count,
           })
         }
@@ -198,7 +217,7 @@ export function DashboardView() {
       }
     }
     fetchStats()
-  }, [])
+  }, [chartRange])
 
   const todayTrend = yesterdayAlerts > 0 ? ((stats.todayAlerts - yesterdayAlerts) / yesterdayAlerts) * 100 : stats.todayAlerts > 0 ? 100 : 0
   const monthTrend = lastMonthAlerts > 0 ? ((stats.monthAlerts - lastMonthAlerts) / lastMonthAlerts) * 100 : stats.monthAlerts > 0 ? 100 : 0
@@ -313,6 +332,12 @@ export function DashboardView() {
     }
   }
 
+  const rangeLabels: Record<ChartRange, string> = {
+    7: '7 días',
+    30: '30 días',
+    90: '90 días',
+  }
+
   return (
     <div className="max-w-[1200px]">
       {/* Section Header */}
@@ -363,16 +388,34 @@ export function DashboardView() {
 
       {/* Charts Section - Tendencias y Estadísticas */}
       <div className="mt-8">
-        <div className="mb-5">
-          <h3 className="text-lg font-medium text-[#181d26]">Tendencias y Estadísticas</h3>
-          <p className="text-xs text-[#41454d] mt-0.5">Visualización de datos de los últimos 7 días</p>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-lg font-medium text-[#181d26]">Tendencias y Estadísticas</h3>
+            <p className="text-xs text-[#41454d] mt-0.5">Visualización de datos de los últimos {chartRange} días</p>
+          </div>
+          {/* Date Range Toggle */}
+          <div className="flex items-center bg-[#f8fafc] border border-[#dddddd] rounded-[10px] p-1">
+            {([7, 30, 90] as ChartRange[]).map((range) => (
+              <button
+                key={range}
+                onClick={() => setChartRange(range)}
+                className={`px-4 py-1.5 rounded-[8px] text-xs font-medium transition-all duration-200 ${
+                  chartRange === range
+                    ? 'bg-[#aa2d00] text-white shadow-sm'
+                    : 'text-[#41454d] hover:text-[#181d26] hover:bg-white'
+                }`}
+              >
+                {rangeLabels[range]}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Line Chart - Alert Trend */}
           <div className="bg-white border border-[#dddddd] rounded-[12px] p-6">
             <div className="mb-4">
               <h4 className="text-sm font-medium text-[#181d26]">Tendencia de Alertas</h4>
-              <p className="text-xs text-[#41454d] mt-0.5">Últimos 7 días</p>
+              <p className="text-xs text-[#41454d] mt-0.5">Últimos {chartRange} días</p>
             </div>
             {loading ? (
               <div className="h-[220px] flex items-center justify-center">
@@ -396,6 +439,7 @@ export function DashboardView() {
                       tick={{ fontSize: 11, fill: '#41454d' }}
                       tickLine={false}
                       axisLine={{ stroke: '#dddddd' }}
+                      interval={chartRange <= 7 ? 0 : chartRange <= 30 ? 2 : 6}
                     />
                     <YAxis
                       tick={{ fontSize: 11, fill: '#41454d' }}
@@ -419,8 +463,8 @@ export function DashboardView() {
                       dataKey="count"
                       stroke="#aa2d00"
                       strokeWidth={2.5}
-                      dot={{ r: 4, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 }}
-                      activeDot={{ r: 6, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 }}
+                      dot={chartRange <= 30 ? { r: 3, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 } : false}
+                      activeDot={{ r: 5, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 }}
                       name="Alertas"
                     />
                   </LineChart>

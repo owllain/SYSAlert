@@ -30,6 +30,7 @@ interface Alert {
   personIdType: string
   description: string
   financialEntityId: string
+  status: string
   financialEntity: { id: string; name: string; code: string }
   creator: { id: string; name: string; username: string; financialEntity: { name: string } }
   createdAt: string
@@ -46,6 +47,7 @@ export function LatestAlertsView() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [entities, setEntities] = useState<Entity[]>([])
   const [filterEntityId, setFilterEntityId] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [detailAlert, setDetailAlert] = useState<Alert | null>(null)
@@ -82,15 +84,19 @@ export function LatestAlertsView() {
     ? alerts
     : alerts.filter(a => a.financialEntityId === filterEntityId)
 
+  const statusFilteredAlerts = filterStatus === 'all'
+    ? entityFilteredAlerts
+    : entityFilteredAlerts.filter(a => a.status === filterStatus)
+
   const filteredAlerts = useMemo(() => {
-    if (!searchQuery.trim()) return entityFilteredAlerts
+    if (!searchQuery.trim()) return statusFilteredAlerts
     const q = searchQuery.toLowerCase().trim()
-    return entityFilteredAlerts.filter(
+    return statusFilteredAlerts.filter(
       (a) =>
         a.personName.toLowerCase().includes(q) ||
         a.personId.toLowerCase().includes(q)
     )
-  }, [entityFilteredAlerts, searchQuery])
+  }, [statusFilteredAlerts, searchQuery])
 
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr)
@@ -103,6 +109,7 @@ export function LatestAlertsView() {
   const handleExport = () => {
     const params = new URLSearchParams({ today: 'true' })
     if (filterEntityId !== 'all') params.set('entityId', filterEntityId)
+    if (filterStatus !== 'all') params.set('status', filterStatus)
 
     const url = `/api/alerts/export?${params.toString()}`
     const link = document.createElement('a')
@@ -122,6 +129,18 @@ export function LatestAlertsView() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[150px] rounded-[6px] border-[#dddddd] h-10">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="active">Activa</SelectItem>
+              <SelectItem value="resolved">Resuelta</SelectItem>
+              <SelectItem value="dismissed">Descartada</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={filterEntityId} onValueChange={setFilterEntityId}>
             <SelectTrigger className="w-[220px] rounded-[6px] border-[#dddddd] h-10">
               <SelectValue placeholder="Filtrar por entidad" />

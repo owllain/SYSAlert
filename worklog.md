@@ -368,3 +368,191 @@ Task: Round 2 QA testing, feature enhancements, and styling improvements
 4. Implement NextAuth authentication
 5. Add audit log for user actions
 6. Add bulk alert operations (mass resolve/dismiss)
+
+---
+Task ID: 4-b
+Agent: fullstack-developer
+Task: Add audit log, bulk alert operations, status filters, and chart date range selector
+
+Work Log:
+- Feature 1: Audit Log System (Backend + Frontend)
+  - Added AuditLog model to prisma/schema.prisma with fields: id, action, entityType, entityId, details, userId, createdAt
+  - Added auditLogs relation to User model
+  - Ran db:push to update database schema
+  - Created /api/audit-logs/route.ts (GET) with filters (userId, entityType, action, from, to), pagination (limit/offset), count param, user relation include
+  - Updated /api/alerts/route.ts to create audit log entries on POST (create_alert), PUT (status_change or update_alert), DELETE (delete_alert)
+  - Updated /api/users/route.ts to create audit log entries on POST (create_user), PUT (update_user), DELETE (delete_user)
+  - Updated alert-detail-dialog.tsx to pass updatedBy field for audit trail
+  - Updated my-alerts-view.tsx to pass updatedBy/deletedBy for audit trail
+  - Updated users-view.tsx and user-form-dialog.tsx to pass createdBy/updatedBy/deletedBy for audit trail
+  - Created /src/components/audit-log-view.tsx:
+    - Table with columns: Fecha, Usuario, Acción, Tipo, Detalle, Entidad
+    - Filter by action type, entity type, date range (from/to)
+    - Search by user name, action, or details
+    - Pagination (10 per page) with smart ellipsis
+    - Spanish action labels with icon badges and color coding (green for create, navy for update/status_change, coral for delete)
+    - Relative time display with absolute date on hover (Tooltip)
+    - Empty state with ScrollText icon
+  - Added 'audit-log' to NavTab type in store.ts
+  - Added "Registro de Actividad" nav item in app-sidebar.tsx with ScrollText icon under General section
+  - Added audit-log case in page.tsx renderContent
+
+- Feature 2: Bulk Alert Operations
+  - Created /api/alerts/bulk/route.ts (PUT) accepting { alertIds, status, updatedBy }
+  - Returns { updated: number }
+  - Creates audit log entries for each alert with bulk: true flag
+  - Updated alert-history-view.tsx:
+    - Added Checkbox component to each table row
+    - Added "Select All" checkbox in header
+    - Floating action bar (fixed bottom-6) when 1+ alerts selected:
+      - Shows "X alertas seleccionadas" count
+      - "Resolver seleccionadas" button (forest green bg-[#0a2e0e])
+      - "Descartar seleccionadas" button (coral bg-[#aa2d00])
+      - "Cancelar" button to deselect all
+      - Styled: bg-[#181d26] text-white rounded-[12px] px-6 py-3 shadow-xl
+    - Toast notifications on bulk action success/failure
+    - Data refresh after bulk operation
+
+- Feature 3: Status Filter for Alert Views
+  - Updated latest-alerts-view.tsx: Added status filter dropdown (Todas, Activa, Resuelta, Descartada) next to entity filter
+  - Updated alert-history-view.tsx: Added status filter dropdown (Todas, Activa, Resuelta, Descartada) next to profile filter
+  - Both filters apply client-side to existing alert arrays
+
+- Feature 4: Chart Date Range Selector
+  - Updated dashboard-view.tsx:
+    - Added toggle button group above charts: "7 días" | "30 días" | "90 días"
+    - Pill-shaped toggle with coral (#aa2d00) active state
+    - Default: 7 days
+    - When toggled, fetches alerts with days=N param
+    - Recalculates trend data for selected range
+    - Chart subtitle updates to show selected range
+    - X-axis interval adjusts based on range (all for 7d, every 3 for 30d, every 7 for 90d)
+    - Dots hidden for 90d range to avoid clutter
+    - Uses chartRange state in useEffect dependency for automatic refetch
+
+Stage Summary:
+- 12 files modified/created: schema.prisma, api/audit-logs/route.ts (new), api/alerts/route.ts, api/users/route.ts, api/alerts/bulk/route.ts (new), audit-log-view.tsx (new), store.ts, app-sidebar.tsx, page.tsx, alert-history-view.tsx, latest-alerts-view.tsx, dashboard-view.tsx, alert-detail-dialog.tsx, my-alerts-view.tsx, users-view.tsx, user-form-dialog.tsx
+- Full audit log system with automatic recording on all CRUD operations
+- Bulk alert resolve/dismiss with floating action bar
+- Status filters on both latest alerts and alert history views
+- Chart date range selector (7/30/90 days) with dynamic data fetching
+- All styling follows Airtable-inspired design system
+- Lint passes with zero errors
+- Dev server running without errors
+
+---
+Task ID: 4-a
+Agent: styling-enhancer
+Task: Comprehensive styling improvements across the application
+
+Work Log:
+- Replaced all "Cargando..." text loading states with proper skeleton loading rows in 4 table views:
+  - my-alerts-view.tsx: 4 skeleton rows with 8 columns matching table layout
+  - latest-alerts-view.tsx: 4 skeleton rows with 8 columns matching table layout
+  - alert-history-view.tsx: 4 skeleton rows with 8 columns matching table layout
+  - users-view.tsx: 4 skeleton rows with avatar skeleton circle and 8 columns matching table layout
+- Added zebra striping (bg-white / bg-[#fafbfc] alternating) to all table rows in 4 views
+- Enhanced all table headers with bg-[#f8fafc]/80, text-xs uppercase tracking-wider styling
+- Improved sidebar mobile animation: always render aside in DOM with transform transition (-translate-x-full when hidden on mobile, translate-x-0 when visible), 300ms ease-in-out duration
+- Updated sidebar overlay to use opacity transition instead of conditional rendering (pointer-events-none when hidden)
+- Added subtle gradient overlay to dashboard stat cards (before:bg-gradient-to-br from-white/5 to-transparent, opacity transition on hover)
+- Replaced plain section divider with gradient version (bg-gradient-to-r from-transparent via-[#dddddd] to-transparent)
+- Added active:scale-[0.98] transition-transform to primary CTA buttons (Crear Alerta, Agregar Usuario)
+- Added Sonner toast styling in globals.css (border-radius 10px, 1px solid #dddddd, font-family)
+- Enhanced quick action cards with left border accent on hover (border-l-2 border-transparent hover:border-l-[#aa2d00])
+- Improved pagination in alert-history-view.tsx:
+  - Active page number uses coral (#aa2d00) background instead of ink (#181d26)
+  - Ellipsis support for many pages (shows ... when totalPages > 7)
+  - Better disabled state styling (disabled:opacity-40 disabled:cursor-not-allowed)
+  - Tighter gap (gap-1.5 instead of gap-2)
+- All changes pass lint with zero errors
+- Dev server running without errors
+
+Stage Summary:
+- 8 files modified: my-alerts-view.tsx, latest-alerts-view.tsx, alert-history-view.tsx, users-view.tsx, app-sidebar.tsx, page.tsx, dashboard-view.tsx, globals.css
+- Skeleton loading replaces text loading in all table views
+- Zebra striping added to all table rows for better readability
+- Enhanced table headers with subtle background and uppercase tracking
+- Sidebar uses CSS transform for smooth mobile slide animation
+- Dashboard stat cards have premium gradient hover effect
+- Quick action cards have left border accent on hover
+- Pagination uses coral active page, ellipsis for many pages, better disabled states
+- All styling follows Airtable-inspired design system colors
+
+---
+Task ID: QA-Round-3
+Agent: main (cron QA review)
+Task: Round 3 QA testing, bug fixes, styling improvements, and new features
+
+## Current Project Status Description/Assessment
+- Interbank Alert System is a feature-rich SPA at `/` with full CRUD, search, export, charts, notifications, audit logging, and bulk operations
+- Seven rounds of development completed across multiple agents
+- The app now has 6 views: Dashboard, Users & Permissions, Audit Log, My Alerts, Latest Alerts, Alert History
+- All lint checks pass, dev server is stable
+
+## Current Goals / Completed Modifications / Verification Results
+
+### Bugs Fixed This Round:
+1. **Audit log creation breaking CRUD operations** - `db.auditLog.create()` was failing because the running dev server had a cached PrismaClient without the new AuditLog model. Fixed by wrapping all audit log `create()` calls in try-catch blocks so they fail gracefully without breaking the main CRUD operations.
+2. **Dev server cache corruption** - After deleting `.next` directory, the Turbopack cache became corrupted. Resolved by properly restarting the dev server with `setsid` and allowing a full recompile.
+
+### Styling Improvements (Task 4-a):
+1. **Skeleton Loading States** - Replaced all "Cargando..." text with proper Skeleton component rows in all 4 table views (My Alerts, Latest Alerts, Alert History, Users)
+2. **Table Zebra Striping** - Alternating row backgrounds (bg-white / bg-[#fafbfc]) for better readability
+3. **Enhanced Table Headers** - Subtle background (bg-[#f8fafc]/80) with uppercase tracking-wider text
+4. **Sidebar Mobile Animation** - CSS transform slide animation (-translate-x-full) with 300ms ease-in-out instead of conditional rendering
+5. **Dashboard Stat Cards** - Subtle gradient overlay on hover for premium feel
+6. **Section Dividers** - Gradient dividers (from-transparent via-[#dddddd] to-transparent)
+7. **Button Active States** - active:scale-[0.98] on primary CTA buttons
+8. **Toast Styling** - Consistent border-radius, border, and font-family for Sonner toasts
+9. **Quick Action Hover** - Left border accent (coral) on hover
+10. **Pagination Enhancement** - Coral active page color, ellipsis for many pages, better disabled states
+
+### New Features (Task 4-b):
+1. **Audit Log System** - Full audit trail with Prisma model, API, and frontend view
+   - Records all CRUD operations: create_alert, update_alert, delete_alert, status_change, create_user, update_user, delete_user
+   - Audit log view with table (Fecha, Usuario, Acción, Tipo, Detalle, Entidad)
+   - Filter by action type, entity type, date range
+   - Search by user name, action, or details
+   - Pagination with smart ellipsis
+   - Color-coded action badges (green=create, navy=update, coral=delete)
+   - Relative time with absolute date on hover
+2. **Bulk Alert Operations** - Checkbox selection with floating action bar
+   - Select All checkbox in header
+   - Individual row checkboxes
+   - Floating bar: "Resolver seleccionadas" / "Descartar seleccionadas" / "Cancelar"
+   - Styled: dark background with rounded-[12px], shadow-xl
+   - Creates audit log entries with bulk: true flag
+3. **Status Filter** - Added status dropdown (Todas, Activa, Resuelta, Descartada) to Latest Alerts and Alert History views
+4. **Chart Date Range Selector** - Toggle between 7/30/90 days on dashboard charts
+   - Pill-shaped toggle with coral active state
+   - Dynamic data fetching with days=N param
+   - X-axis interval adjusts based on range
+
+### QA Verification:
+- Dashboard tested: stat cards, charts with date range selector, activity feed, quick actions, entity breakdown
+- Users view tested: skeleton loading, table with zebra striping, enhanced headers
+- My Alerts tested: CRUD operations, search, status change, alert detail dialog
+- Latest Alerts tested: entity filter, status filter, search, export
+- Alert History tested: profile filter, entity filter, status filter, search, pagination, bulk select
+- Audit Log tested: shows entries, filter dropdowns, search, date range
+- Notification bell tested: badge count, popover list
+- Alert creation generates audit log entry (verified via API)
+- Bulk operations floating bar appears when checkboxes selected
+- Lint passes with zero errors
+- Dev server stable
+
+## Unresolved Issues or Risks
+1. **No authentication** - Currently any user can be switched via header dropdown; production needs NextAuth
+2. **Prisma client caching** - After schema changes, the dev server may need a restart to pick up new models (audit log try-catch mitigates this)
+3. **No real-time notifications** - Polling every 30s instead of WebSocket push
+4. **No PDF export** - Could add PDF report generation for monthly summaries
+5. **Audit log empty initially** - Only records actions after the feature was added; historical actions not logged
+
+### Priority Recommendations for Next Phase
+1. Implement NextAuth authentication with role-based access control
+2. Add PDF report generation for monthly alert summaries
+3. Add WebSocket real-time notifications between entities
+4. Add data seeding for audit log (backfill from existing alerts)
+5. Add keyboard shortcuts for power users (Ctrl+N for new alert, etc.)
+6. Consider server-side pagination for large datasets

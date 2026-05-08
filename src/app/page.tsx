@@ -9,6 +9,7 @@ import { UsersView } from '@/components/users-view'
 import { MyAlertsView } from '@/components/my-alerts-view'
 import { LatestAlertsView } from '@/components/latest-alerts-view'
 import { AlertHistoryView } from '@/components/alert-history-view'
+import { AuditLogView } from '@/components/audit-log-view'
 import { AnimatePresence, motion } from 'framer-motion'
 
 export default function Home() {
@@ -113,6 +114,8 @@ export default function Home() {
         return <LatestAlertsView />
       case 'alert-history':
         return <AlertHistoryView />
+      case 'audit-log':
+        return <AuditLogView />
       default:
         return <DashboardView />
     }
@@ -135,12 +138,10 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-white">
       <div className="flex flex-1">
         {/* Sidebar overlay for mobile */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/30 z-30 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+        <div
+          className={`fixed inset-0 bg-black/30 z-30 lg:hidden transition-opacity duration-300 ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setSidebarOpen(false)}
+        />
 
         <AppSidebar />
 

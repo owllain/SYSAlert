@@ -150,3 +150,10 @@
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #9297a0;
 }
+
+/* Sonner toast styling */
+[data-sonner-toast] {
+  border-radius: 10px !important;
+  border: 1px solid #dddddd !important;
+  font-family: var(--font-inter), sans-serif !important;
+}

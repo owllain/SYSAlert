@@ -34,6 +34,7 @@ import {
   ShieldAlert,
   DollarSign,
 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
 
@@ -107,7 +108,7 @@ export function MyAlertsView() {
   const handleDelete = async () => {
     if (!deleteAlert) return
     try {
-      const res = await fetch(`/api/alerts?id=${deleteAlert.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/alerts?id=${deleteAlert.id}&deletedBy=${currentUser?.id || ''}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Alerta eliminada correctamente')
         fetchAlerts()
@@ -127,7 +128,7 @@ export function MyAlertsView() {
       const res = await fetch('/api/alerts', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: alertId, status: newStatus }),
+        body: JSON.stringify({ id: alertId, status: newStatus, updatedBy: currentUser?.id }),
       })
       if (res.ok) {
         toast.success(`Alerta cambiada a "${statusLabels[newStatus]}"`)
@@ -160,7 +161,7 @@ export function MyAlertsView() {
         </div>
         <Button
           onClick={() => { setEditAlert(null); setFormOpen(true) }}
-          className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#181d26]/90"
+          className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#181d26]/90 active:scale-[0.98] transition-transform"
         >
           <Plus size={18} className="mr-2" />
           Crear Alerta
@@ -183,24 +184,31 @@ export function MyAlertsView() {
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-[#dddddd]">
-              <TableHead className="text-[#41454d] font-medium">Perfil</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Persona</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden md:table-cell">Identificación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden lg:table-cell">Afectación</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden xl:table-cell">Descripción</TableHead>
-              <TableHead className="text-[#41454d] font-medium">Estado</TableHead>
-              <TableHead className="text-[#41454d] font-medium hidden sm:table-cell">Fecha</TableHead>
-              <TableHead className="text-[#41454d] font-medium text-right">Acciones</TableHead>
+            <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden md:table-cell">Identificación</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Afectación</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden xl:table-cell">Descripción</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Estado</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Fecha</TableHead>
+              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-[#41454d]">
-                  Cargando...
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-12" /></TableCell>
+                  <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-36" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                </TableRow>
+              ))
             ) : filteredAlerts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-20 text-[#41454d]">
@@ -222,10 +230,10 @@ export function MyAlertsView() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAlerts.map((alert) => (
+              filteredAlerts.map((alert, idx) => (
                 <TableRow
                   key={alert.id}
-                  className="border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors"
+                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
                   onClick={() => setDetailAlert(alert)}
                 >
                   <TableCell>

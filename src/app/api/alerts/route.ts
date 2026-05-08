@@ -175,6 +175,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create audit log entry (non-blocking, resilient to schema changes)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'create_alert',
+          entityType: 'alert',
+          entityId: alert.id,
+          details: JSON.stringify({
+            profile: alert.profile,
+            personName: alert.personName,
+            personId: alert.personId,
+            financialEntity: entity.name,
+          }),
+          userId: createdBy,
+        },
+      });
+    } catch (auditError) {
+      console.warn('Audit log creation failed (schema may need update):', auditError);
+    }
+
     return NextResponse.json(alert, { status: 201 });
   } catch (error) {
     console.error('Error creating alert:', error);
@@ -189,7 +209,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, profile, economicAffectation, personName, personId, personIdType, description, status } = body;
+    const { id, profile, economicAffectation, personName, personId, personIdType, description, status, updatedBy } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -249,6 +269,42 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    // Create audit log entry (non-blocking, resilient to schema changes)
+    try {
+      if (status !== undefined && status !== existing.status) {
+        // Status change - record as status_change
+        await db.auditLog.create({
+          data: {
+            action: 'status_change',
+            entityType: 'alert',
+            entityId: id,
+            details: JSON.stringify({
+              from: existing.status,
+              to: status,
+              personName: existing.personName,
+            }),
+            userId: updatedBy || existing.createdBy,
+          },
+        });
+      } else {
+        // Regular update
+        await db.auditLog.create({
+          data: {
+            action: 'update_alert',
+            entityType: 'alert',
+            entityId: id,
+            details: JSON.stringify({
+              personName: existing.personName,
+              updatedFields: Object.keys(updateData),
+            }),
+            userId: updatedBy || existing.createdBy,
+          },
+        });
+      }
+    } catch (auditError) {
+      console.warn('Audit log creation failed (schema may need update):', auditError);
+    }
+
     return NextResponse.json(alert);
   } catch (error) {
     console.error('Error updating alert:', error);
@@ -264,6 +320,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const deletedBy = searchParams.get('deletedBy');
 
     if (!id) {
       return NextResponse.json(
@@ -281,6 +338,25 @@ export async function DELETE(request: NextRequest) {
     }
 
     await db.alert.delete({ where: { id } });
+
+    // Create audit log entry (non-blocking, resilient to schema changes)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'delete_alert',
+          entityType: 'alert',
+          entityId: id,
+          details: JSON.stringify({
+            personName: existing.personName,
+            personId: existing.personId,
+            status: existing.status,
+          }),
+          userId: deletedBy || existing.createdBy,
+        },
+      });
+    } catch (auditError) {
+      console.warn('Audit log creation failed (schema may need update):', auditError);
+    }
 
     return NextResponse.json({ message: 'Alert deleted successfully' });
   } catch (error) {

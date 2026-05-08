@@ -19,6 +19,7 @@ import {
   Clock,
   Building2,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import {
   LineChart,
@@ -288,14 +289,14 @@ export function DashboardView() {
   ]
 
   const quickActions = [
-    {
+    ...(currentUser?.role !== 'viewer' ? [{
       label: 'Nueva Alerta',
       description: 'Registrar una alerta interbancaria',
       icon: Plus,
       iconColor: 'text-[#aa2d00]',
       iconBg: 'bg-[#aa2d00]/10',
       action: () => setCreateAlertOpen(true),
-    },
+    }] : []),
     {
       label: 'Gestionar Usuarios',
       description: 'Administrar permisos y accesos',
@@ -373,7 +374,7 @@ export function DashboardView() {
       </p>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
         {statCards.map((card) => {
           const Icon = card.icon
           return (
@@ -398,11 +399,15 @@ export function DashboardView() {
                     </div>
                   )}
                 </div>
-                <div className="text-3xl font-medium leading-none mb-1.5">
-                  {loading ? (
-                    <div className="h-8 w-16 rounded-[4px] bg-white/20 animate-pulse" />
-                  ) : card.value}
-                </div>
+                <motion.span
+                  key={card.value}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="text-3xl font-medium leading-none mb-1.5"
+                >
+                  {loading ? <div className="h-8 w-16 rounded-[4px] bg-white/20 animate-pulse" /> : card.value}
+                </motion.span>
                 <div className={`text-sm ${card.iconColor} font-normal`}>{card.label}</div>
                 {card.trendLabel && card.trend !== 0 && (
                   <div className={`text-xs mt-1 ${card.iconColor} opacity-60`}>{card.trendLabel}</div>
@@ -421,7 +426,7 @@ export function DashboardView() {
       </div>
 
       {/* Status Breakdown */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-3 gap-4 mt-6">
         {/* Card: Active Alerts */}
         <div className="flex items-center gap-3 p-4 rounded-[10px] border border-[#dddddd] bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 will-change-transform">
           <div className="w-10 h-10 rounded-[8px] bg-[#aa2d00]/10 flex items-center justify-center">
@@ -476,7 +481,7 @@ export function DashboardView() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="text-lg font-medium text-[#181d26]">Tendencias y Estadísticas</h3>
-            <p className="text-xs text-[#41454d] mt-0.5">Visualización de datos de los últimos {chartRange} días</p>
+            <p className="text-xs text-[#41454d] mt-0.5 hidden sm:block">Visualización de datos de los últimos {chartRange} días</p>
           </div>
           {/* Date Range Toggle */}
           <div className="flex items-center bg-[#f8fafc] border border-[#dddddd] rounded-[10px] p-1">
@@ -500,7 +505,7 @@ export function DashboardView() {
           <div className="bg-white border border-[#dddddd] rounded-[12px] p-6">
             <div className="mb-4">
               <h4 className="text-sm font-medium text-[#181d26]">Tendencia de Alertas</h4>
-              <p className="text-xs text-[#41454d] mt-0.5">Últimos {chartRange} días</p>
+              <p className="text-xs text-[#41454d] mt-0.5 hidden sm:block">Últimos {chartRange} días</p>
             </div>
             {loading ? (
               <div className="h-[220px] flex items-center justify-center">
@@ -562,7 +567,7 @@ export function DashboardView() {
           <div className="bg-white border border-[#dddddd] rounded-[12px] p-6">
             <div className="mb-4">
               <h4 className="text-sm font-medium text-[#181d26]">Distribución de Alertas</h4>
-              <p className="text-xs text-[#41454d] mt-0.5">Por perfil y estado</p>
+              <p className="text-xs text-[#41454d] mt-0.5 hidden sm:block">Por perfil y estado</p>
             </div>
             {loading ? (
               <div className="h-[220px] flex items-center justify-center">
@@ -800,7 +805,7 @@ export function DashboardView() {
                   })}
                 </div>
                 {/* Legend */}
-                <div className="flex flex-wrap gap-5">
+                <div className="flex flex-wrap gap-5 flex-col sm:flex-row">
                   {entityBreakdown.map((entity) => (
                     <div key={entity.code} className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entity.color }} />

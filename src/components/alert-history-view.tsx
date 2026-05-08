@@ -200,6 +200,8 @@ export function AlertHistoryView() {
     }
   }
 
+  const isViewer = currentUser?.role === 'viewer'
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
@@ -312,19 +314,21 @@ export function AlertHistoryView() {
         <Table>
           <TableHeader>
             <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
-              <TableHead className="w-[40px] px-3">
-                <Checkbox
-                  checked={allPageSelected}
-                  ref={(el) => {
-                    if (el) {
-                      // @ts-expect-error radix checkbox ref
-                      el.dataset.state = somePageSelected ? 'indeterminate' : allPageSelected ? 'checked' : 'unchecked'
-                    }
-                  }}
-                  onCheckedChange={toggleSelectAll}
-                  className="rounded-[4px]"
-                />
-              </TableHead>
+              {!isViewer && (
+                <TableHead className="w-[40px] px-3">
+                  <Checkbox
+                    checked={allPageSelected}
+                    ref={(el) => {
+                      if (el) {
+                        // @ts-expect-error radix checkbox ref
+                        el.dataset.state = somePageSelected ? 'indeterminate' : allPageSelected ? 'checked' : 'unchecked'
+                      }
+                    }}
+                    onCheckedChange={toggleSelectAll}
+                    className="rounded-[4px]"
+                  />
+                </TableHead>
+              )}
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Entidad</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
@@ -338,7 +342,7 @@ export function AlertHistoryView() {
           <TableBody>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                <TableRow key={i} className={`border-l-2 border-l-transparent ${i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
                   <TableCell className="px-3"><Skeleton className="h-4 w-4" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -352,7 +356,7 @@ export function AlertHistoryView() {
               ))
             ) : paginatedAlerts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-20 text-[#41454d]">
+                <TableCell colSpan={isViewer ? 8 : 9} className="text-center py-20 text-[#41454d]">
                   <div className="flex flex-col items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
                       <CalendarDays size={28} className="text-[#41454d]/40" />
@@ -374,16 +378,18 @@ export function AlertHistoryView() {
               paginatedAlerts.map((alert, idx) => (
                 <TableRow
                   key={alert.id}
-                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors ${selectedIds.has(alert.id) ? 'bg-[#f8fafc]' : idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
+                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 ${selectedIds.has(alert.id) ? 'bg-[#f8fafc]' : idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
                   onClick={() => setDetailAlert(alert)}
                 >
-                  <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedIds.has(alert.id)}
-                      onCheckedChange={() => toggleSelect(alert.id)}
-                      className="rounded-[4px]"
-                    />
-                  </TableCell>
+                  {!isViewer && (
+                    <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(alert.id)}
+                        onCheckedChange={() => toggleSelect(alert.id)}
+                        className="rounded-[4px]"
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="text-[#41454d] text-sm">{alert.financialEntity?.name || '—'}</TableCell>
                   <TableCell>
                     <Badge
@@ -479,7 +485,7 @@ export function AlertHistoryView() {
       )}
 
       {/* Floating Action Bar for Bulk Operations */}
-      {selectedIds.size > 0 && (
+      {!isViewer && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#181d26] text-white rounded-[12px] px-6 py-3 shadow-xl flex items-center gap-4 z-50">
           <span className="text-sm font-medium">
             {selectedIds.size} alerta{selectedIds.size !== 1 ? 's' : ''} seleccionada{selectedIds.size !== 1 ? 's' : ''}

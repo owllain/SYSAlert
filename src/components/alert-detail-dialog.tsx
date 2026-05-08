@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
+import { motion } from 'framer-motion'
 
 interface Alert {
   id: string
@@ -114,7 +115,12 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto custom-scrollbar">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto custom-scrollbar"
+        >
           {/* Profile & Status Row */}
           <div className="flex items-center gap-3 flex-wrap">
             <Badge
@@ -244,57 +250,61 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
           </div>
 
           {/* Status Change Section */}
-          <Separator className="bg-[#dddddd]" />
+          {currentUser?.role !== 'viewer' && (
+            <>
+              <Separator className="bg-[#dddddd]" />
 
-          <div>
-            <p className="text-xs text-[#41454d] uppercase tracking-wider font-medium mb-3">Cambiar Estado</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              {alert.status === 'active' && (
-                <>
-                  <Button
-                    onClick={() => handleStatusChange('resolved')}
-                    disabled={changingStatus}
-                    className="bg-[#0a2e0e] text-white rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#0a2e0e]/90"
-                  >
-                    <CheckCircle2 size={15} className="mr-1.5" />
-                    Marcar Resuelta
-                  </Button>
-                  <Button
-                    onClick={() => handleStatusChange('dismissed')}
-                    disabled={changingStatus}
-                    variant="outline"
-                    className="border-[#dddddd] text-[#41454d] rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#f5e9d4]/50 hover:text-[#181d26] hover:border-[#e8d5b8]"
-                  >
-                    <XCircle size={15} className="mr-1.5" />
-                    Descartar
-                  </Button>
-                </>
-              )}
-              {alert.status === 'resolved' && (
-                <Button
-                  onClick={() => handleStatusChange('active')}
-                  disabled={changingStatus}
-                  variant="outline"
-                  className="border-[#dddddd] text-[#41454d] rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#0a2e0e]/5 hover:text-[#0a2e0e] hover:border-[#0a2e0e]/30"
-                >
-                  <ArrowRight size={15} className="mr-1.5" />
-                  Reactivar
-                </Button>
-              )}
-              {alert.status === 'dismissed' && (
-                <Button
-                  onClick={() => handleStatusChange('active')}
-                  disabled={changingStatus}
-                  variant="outline"
-                  className="border-[#dddddd] text-[#41454d] rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#0a2e0e]/5 hover:text-[#0a2e0e] hover:border-[#0a2e0e]/30"
-                >
-                  <ArrowRight size={15} className="mr-1.5" />
-                  Reactivar
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+              <div>
+                <p className="text-xs text-[#41454d] uppercase tracking-wider font-medium mb-3">Cambiar Estado</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {alert.status === 'active' && (
+                    <>
+                      <Button
+                        onClick={() => handleStatusChange('resolved')}
+                        disabled={changingStatus}
+                        className="bg-[#0a2e0e] text-white rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#0a2e0e]/90"
+                      >
+                        <CheckCircle2 size={15} className="mr-1.5" />
+                        Marcar Resuelta
+                      </Button>
+                      <Button
+                        onClick={() => handleStatusChange('dismissed')}
+                        disabled={changingStatus}
+                        variant="outline"
+                        className="border-[#dddddd] text-[#41454d] rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#f5e9d4]/50 hover:text-[#181d26] hover:border-[#e8d5b8]"
+                      >
+                        <XCircle size={15} className="mr-1.5" />
+                        Descartar
+                      </Button>
+                    </>
+                  )}
+                  {alert.status === 'resolved' && (
+                    <Button
+                      onClick={() => handleStatusChange('active')}
+                      disabled={changingStatus}
+                      variant="outline"
+                      className="border-[#dddddd] text-[#41454d] rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#0a2e0e]/5 hover:text-[#0a2e0e] hover:border-[#0a2e0e]/30"
+                    >
+                      <ArrowRight size={15} className="mr-1.5" />
+                      Reactivar
+                    </Button>
+                  )}
+                  {alert.status === 'dismissed' && (
+                    <Button
+                      onClick={() => handleStatusChange('active')}
+                      disabled={changingStatus}
+                      variant="outline"
+                      className="border-[#dddddd] text-[#41454d] rounded-[10px] px-4 h-9 text-sm font-medium hover:bg-[#0a2e0e]/5 hover:text-[#0a2e0e] hover:border-[#0a2e0e]/30"
+                    >
+                      <ArrowRight size={15} className="mr-1.5" />
+                      Reactivar
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </motion.div>
 
         <div className="px-8 pb-8 pt-4 flex items-center justify-end border-t border-[#dddddd]">
           <Button

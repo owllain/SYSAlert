@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore, type NavTab } from '@/lib/store'
-import { Home, Users, Bell, Clock, Calendar, ChevronDown, ChevronRight, Shield, LogOut, ScrollText } from 'lucide-react'
+import { Home, Users, Bell, Clock, Calendar, ChevronDown, ChevronRight, Shield, LogOut, ScrollText, Building2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 const entityDotColors: Record<string, string> = {
@@ -23,7 +23,7 @@ interface AlertCount {
 }
 
 export function AppSidebar() {
-  const { activeTab, setActiveTab, sidebarOpen, currentUser } = useAppStore()
+  const { activeTab, setActiveTab, sidebarOpen, currentUser, setCurrentUser } = useAppStore()
   const [alertsOpen, setAlertsOpen] = useState(true)
   const [alertCount, setAlertCount] = useState<AlertCount>({ myAlerts: 0, latestAlerts: 0, total: 0 })
 
@@ -55,10 +55,13 @@ export function AppSidebar() {
   const entityColor = entityDotColors[entityCode] || '#41454d'
   const entityBadge = entityBadgeColors[entityCode] || entityBadgeColors['BNC']
 
+  const isViewer = currentUser?.role === 'viewer'
+
   const navItems: { id: NavTab; label: string; icon: React.ElementType; section?: string; badge?: number }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'entities', label: 'Entidades', icon: Building2 },
     { id: 'users', label: 'Usuarios y Permisos', icon: Users },
-    { id: 'audit-log', label: 'Registro de Actividad', icon: ScrollText },
+    ...(isViewer ? [] : [{ id: 'audit-log' as NavTab, label: 'Registro de Actividad', icon: ScrollText }]),
     { id: 'my-alerts', label: 'Mis Alertas', icon: Bell, section: 'alerts', badge: alertCount.myAlerts },
     { id: 'latest-alerts', label: 'Últimas Alertas', icon: Clock, section: 'alerts', badge: alertCount.latestAlerts },
     { id: 'alert-history', label: 'Historial Alertas', icon: Calendar, section: 'alerts' },
@@ -197,7 +200,13 @@ export function AppSidebar() {
                 </span>
               </div>
             </div>
-            <button className="text-[#41454d]/50 hover:text-[#aa2d00] transition-colors p-1">
+            <button
+              className="text-[#41454d]/50 hover:text-[#aa2d00] transition-colors p-1"
+              onClick={() => {
+                localStorage.removeItem('currentUserId')
+                setCurrentUser(null)
+              }}
+            >
               <LogOut size={14} />
             </button>
           </div>

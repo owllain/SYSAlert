@@ -176,14 +176,22 @@ export function MyAlertsView() {
         <div>
           <h2 className="text-2xl font-medium text-[#181d26]">Mis Alertas</h2>
           <p className="text-[#41454d] mt-1">Gestión de alertas creadas por usted</p>
+          {currentUser?.role === 'viewer' && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-[#aa2d00] bg-[#aa2d00]/5 px-3 py-2 rounded-[8px] border border-[#aa2d00]/10 w-fit">
+              <ShieldAlert size={12} />
+              Su rol solo permite consulta
+            </div>
+          )}
         </div>
-        <Button
-          onClick={() => { setEditAlert(null); setFormOpen(true) }}
-          className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#181d26]/90 active:scale-[0.98] transition-transform"
-        >
-          <Plus size={18} className="mr-2" />
-          Crear Alerta
-        </Button>
+        {currentUser?.role !== 'viewer' && (
+          <Button
+            onClick={() => { setEditAlert(null); setFormOpen(true) }}
+            className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#181d26]/90 active:scale-[0.98] transition-transform"
+          >
+            <Plus size={18} className="mr-2" />
+            Crear Alerta
+          </Button>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -211,13 +219,15 @@ export function MyAlertsView() {
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden xl:table-cell">Descripción</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Estado</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Fecha</TableHead>
-              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider text-right">Acciones</TableHead>
+              {currentUser?.role !== 'viewer' && (
+                <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider text-right">Acciones</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                <TableRow key={i} className={`border-l-2 border-l-transparent ${i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
@@ -230,7 +240,7 @@ export function MyAlertsView() {
               ))
             ) : filteredAlerts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-20 text-[#41454d]">
+                <TableCell colSpan={currentUser?.role !== 'viewer' ? 8 : 7} className="text-center py-20 text-[#41454d]">
                   <div className="flex flex-col items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
                       <ShieldAlert size={28} className="text-[#41454d]/40" />
@@ -252,7 +262,7 @@ export function MyAlertsView() {
               filteredAlerts.map((alert, idx) => (
                 <TableRow
                   key={alert.id}
-                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
+                  className={`border-b border-[#dddddd] last:border-0 cursor-pointer hover:bg-[#f8fafc]/60 transition-colors border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
                   onClick={() => setDetailAlert(alert)}
                 >
                   <TableCell>
@@ -303,86 +313,88 @@ export function MyAlertsView() {
                   <TableCell className="text-[#41454d] text-sm hidden sm:table-cell whitespace-nowrap">
                     {formatDate(alert.createdAt)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div
-                      className="flex items-center justify-end gap-0.5"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
-                        onClick={() => { setEditAlert(alert); setFormOpen(true) }}
+                  {currentUser?.role !== 'viewer' && (
+                    <TableCell className="text-right">
+                      <div
+                        className="flex items-center justify-end gap-0.5"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Pencil size={14} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-[#aa2d00] hover:text-[#aa2d00]/80"
-                        onClick={() => setDeleteAlert(alert)}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
-                            disabled={changingStatus === alert.id}
-                          >
-                            <MoreHorizontal size={14} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-[8px]">
-                          {alert.status === 'active' && (
-                            <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
+                          onClick={() => { setEditAlert(alert); setFormOpen(true) }}
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#aa2d00] hover:text-[#aa2d00]/80"
+                          onClick={() => setDeleteAlert(alert)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#41454d] hover:text-[#181d26]"
+                              disabled={changingStatus === alert.id}
+                            >
+                              <MoreHorizontal size={14} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-[8px]">
+                            {alert.status === 'active' && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(alert.id, 'resolved')}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  <CheckCircle2 size={14} className="mr-2 text-[#0a2e0e]" />
+                                  Marcar como Resuelta
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleStatusChange(alert.id, 'dismissed')}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  <XCircle size={14} className="mr-2 text-[#aa2d00]" />
+                                  Descartar Alerta
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {alert.status === 'resolved' && (
                               <DropdownMenuItem
-                                onClick={() => handleStatusChange(alert.id, 'resolved')}
+                                onClick={() => handleStatusChange(alert.id, 'active')}
                                 className="text-sm cursor-pointer"
                               >
-                                <CheckCircle2 size={14} className="mr-2 text-[#0a2e0e]" />
-                                Marcar como Resuelta
+                                <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
+                                Reactivar Alerta
                               </DropdownMenuItem>
+                            )}
+                            {alert.status === 'dismissed' && (
                               <DropdownMenuItem
-                                onClick={() => handleStatusChange(alert.id, 'dismissed')}
+                                onClick={() => handleStatusChange(alert.id, 'active')}
                                 className="text-sm cursor-pointer"
                               >
-                                <XCircle size={14} className="mr-2 text-[#aa2d00]" />
-                                Descartar Alerta
+                                <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
+                                Reactivar Alerta
                               </DropdownMenuItem>
-                            </>
-                          )}
-                          {alert.status === 'resolved' && (
+                            )}
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => handleStatusChange(alert.id, 'active')}
+                              onClick={() => setDetailAlert(alert)}
                               className="text-sm cursor-pointer"
                             >
-                              <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
-                              Reactivar Alerta
+                              Ver Detalle
                             </DropdownMenuItem>
-                          )}
-                          {alert.status === 'dismissed' && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(alert.id, 'active')}
-                              className="text-sm cursor-pointer"
-                            >
-                              <ArrowRight size={14} className="mr-2 text-[#0a2e0e]" />
-                              Reactivar Alerta
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => setDetailAlert(alert)}
-                            className="text-sm cursor-pointer"
-                          >
-                            Ver Detalle
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

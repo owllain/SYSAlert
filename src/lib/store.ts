@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type NavTab = 'dashboard' | 'users' | 'audit-log' | 'my-alerts' | 'latest-alerts' | 'alert-history'
+export type NavTab = 'dashboard' | 'entities' | 'users' | 'audit-log' | 'my-alerts' | 'latest-alerts' | 'alert-history'
 
 interface CurrentUser {
   id: string
@@ -33,6 +33,8 @@ export const useAppStore = create<AppState>((set) => ({
     set({ currentUser: user })
     if (user) {
       localStorage.setItem('currentUserId', user.id)
+    } else {
+      localStorage.removeItem('currentUserId')
     }
   },
   sidebarOpen: true,

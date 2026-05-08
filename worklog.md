@@ -876,3 +876,283 @@ Task: Round 4 QA testing, bug fixes, feature enhancements, and styling improveme
 4. Improve mobile responsive design with dedicated mobile layouts
 5. Add data visualization improvements (entity comparison chart, heatmap)
 6. Consider server-side pagination for large datasets
+
+---
+Task ID: 4
+Agent: fullstack-developer
+Task: Add Entity Detail View with Alert Comparison Dashboard
+
+Work Log:
+- Updated src/lib/store.ts:
+  - Added 'entities' to the NavTab type union
+- Created src/components/entities-view.tsx:
+  - Header: "Entidades Financieras" with subtitle "Comparación y detalle de entidades del sistema interbancario"
+  - Three entity cards in responsive grid (1 col mobile, 3 col desktop):
+    - Entity-colored left border (4px: coral for BP, forest for BCR, dark for BNC)
+    - Entity name, code badge, and Building2 icon with entity-colored background
+    - Alert count with Bell icon and user count with Users icon in 2-col stats grid
+    - Active/Resolved/Dismissed breakdown as mini progress bar with color legend
+    - Receptor/Víctima counts and economic affectation with DollarSign icon
+    - "Ver alertas" button that navigates to Latest Alerts tab
+    - Skeleton loading states while data fetches
+  - Comparación de Alertas section with horizontal bar chart (Recharts BarChart):
+    - Shows alerts by entity for the current month
+    - Bars colored by entity colors (coral #aa2d00, forest #0a2e0e, ink #181d26)
+    - Custom tooltip with entity name and count
+    - Rounded bar tops (radius [6,6,0,0])
+    - Empty state with ShieldAlert icon
+  - Distribución por Perfil section with comparison table:
+    - Rows: Receptor, Víctima, Total, Afectación Económica
+    - Columns: Each entity with entity-colored header
+    - Shows count and percentage for each cell
+    - Profile badges with colored backgrounds (forest for Receptor, coral for Víctima)
+    - Total row with percentage of overall alerts (bg-[#f8fafc]/60)
+    - Economic affectation row with DollarSign badge and cream background
+  - Fetches /api/entities and /api/alerts?month=true on mount
+  - Calculates per-entity stats from combined data
+- Updated src/components/app-sidebar.tsx:
+  - Added Building2 import from lucide-react
+  - Added "Entidades" nav item with Building2 icon in General section (after Dashboard, before Users)
+- Updated src/app/page.tsx:
+  - Imported EntitiesView component
+  - Added 'entities' case in renderContent switch
+- Updated src/components/keyboard-shortcuts.tsx:
+  - Updated Alt+number mappings: 2=Entities, 3=Users, 4=Audit Log, 5=My Alerts, 6=Latest Alerts, 7=Alert History
+  - Updated tab labels for new numbering
+
+Stage Summary:
+- 5 files modified: store.ts, entities-view.tsx (new), app-sidebar.tsx, page.tsx, keyboard-shortcuts.tsx
+- New "Entidades" view with entity detail cards, alert comparison bar chart, and profile distribution table
+- Sidebar nav order: Dashboard, Entidades, Usuarios y Permisos, Registro de Actividad
+- Keyboard shortcuts updated: Alt+2 now navigates to Entidades
+- All styling follows Airtable-inspired design system
+- Lint passes with zero errors
+- Dev server running without errors
+
+---
+Task ID: 3
+Agent: fullstack-developer
+Task: Add Login Page and Role-Based UI Access Control
+
+Work Log:
+- Part 1: Login Page Component
+  - Created /src/components/login-view.tsx with Airtable-inspired design
+  - Full-screen centered layout with cream (#f5e9d4) subtle dot pattern background
+  - Login card: white bg, rounded-[16px], shadow-xl, max-w-[440px]
+  - Card header: Shield icon in dark square, "Sistema de Alertas Interbancario" title, "Inicie sesión para continuar" subtitle
+  - Three user cards with quick login (no traditional form):
+    - Each card shows: avatar circle (entity-colored), user name, role badge, entity name, "Ingresar" arrow
+    - On click calls setCurrentUser() from store
+  - Loading state with pulse animation skeletons
+  - Footer: "Plataforma segura · Costa Rica" with Lock icon
+  - Entity colors: BP=#aa2d00, BCR=#0a2e0e, BNC=#181d26
+  - Role labels: admin=Administrador, analyst=Analista, viewer=Consultor
+
+- Part 2: Updated page.tsx for Login Flow
+  - Imported LoginView component
+  - When !currentUser (after initialization), shows LoginView instead of main app layout
+  - Removed automatic user selection logic from initialization
+  - Only restores user from localStorage if previously saved
+  - After initialization, if no currentUser → LoginView, if currentUser → main app
+
+- Part 3: Updated store.ts
+  - setCurrentUser now clears localStorage when user is null
+  - Ensures clean logout behavior
+
+- Part 4: Updated app-sidebar.tsx
+  - Added logout functionality: LogOut button clears localStorage and calls setCurrentUser(null)
+  - Added setCurrentUser to destructured store
+  - Conditionally hides audit-log nav item for viewer role (isViewer check)
+  - Audit log access restricted to admin and analyst roles
+
+- Part 5: Updated users-view.tsx - Role-Based Access
+  - Only admin role can see "Agregar Usuario" button
+  - Only admin role can see edit/delete action columns and buttons
+  - Non-admin users see a badge: "Solo administradores pueden gestionar usuarios" with Shield icon
+  - colSpan adjusted based on role (8 for admin, 7 for others)
+  - Added Shield icon import
+
+- Part 6: Updated my-alerts-view.tsx - Role-Based Access
+  - viewer role cannot see "Crear Alerta" button
+  - viewer role cannot see edit/delete/dropdown action columns
+  - viewer sees a message: "Su rol solo permite consulta" with ShieldAlert icon
+  - colSpan adjusted based on role (8 for non-viewer, 7 for viewer)
+
+- Part 7: Updated alert-history-view.tsx - Role-Based Bulk Operations
+  - viewer role cannot use bulk operations (checkboxes hidden)
+  - Select All checkbox in header hidden for viewers
+  - Individual row checkboxes hidden for viewers
+  - Floating action bar hidden for viewers
+  - colSpan adjusted (9 for non-viewer, 8 for viewer)
+
+- Part 8: Updated alert-detail-dialog.tsx - Role-Based Status Changes
+  - "Cambiar Estado" section hidden for viewer role
+  - Status change buttons (Marcar Resuelta, Descartar, Reactivar) only visible for admin/analyst
+
+- Part 9: Updated dashboard-view.tsx - Role-Based Quick Actions
+  - "Nueva Alerta" quick action hidden for viewer role
+  - Other quick actions (Gestionar Usuarios, Ver Últimas, Historial) still visible
+
+- Part 10: Updated keyboard-shortcuts.tsx - Role-Based Shortcuts
+  - Ctrl+N disabled for viewer role (shows "Su rol solo permite consulta" toast)
+  - Alt+3 (audit-log) disabled for viewer role (shows "Acceso no permitido para su rol" toast)
+  - Updated tab map to match current navigation: 1=Dashboard, 2=Users, 3=Audit Log, 4=My Alerts, 5=Latest Alerts, 6=History
+
+- Part 11: Updated page.tsx footer
+  - "Ctrl+N Nueva Alerta" hint hidden for viewer role
+
+Stage Summary:
+- 9 files modified: login-view.tsx (new), page.tsx, store.ts, app-sidebar.tsx, users-view.tsx, my-alerts-view.tsx, alert-history-view.tsx, alert-detail-dialog.tsx, dashboard-view.tsx, keyboard-shortcuts.tsx
+- Login page replaces auto-login with proper "quick login" UX
+- Full role-based UI access control implemented:
+  - Admin: full access to all features
+  - Analyst: can create/edit/delete alerts, view users (no user management), view audit log
+  - Viewer: read-only access, no alert creation/edition/deletion, no bulk ops, no audit log
+- Logout functionality added via sidebar LogOut button
+- All styling follows Airtable-inspired design system
+- Lint passes with zero errors
+- Dev server running without errors
+
+---
+Task ID: 5
+Agent: styling-enhancer
+Task: Improve Styling with Micro-Animations, Mobile Responsiveness, and Login Polish
+
+Work Log:
+- 1. Login Page Animation Enhancement (login-view.tsx)
+  - Wrapped login card in motion.div with initial={{ opacity: 0, y: 20 }}, animate={{ opacity: 1, y: 0 }}, transition={{ duration: 0.4 }}
+  - Each user card wrapped in motion.div with initial={{ opacity: 0, x: -10 }}, staggered delay (index * 0.08)
+  - Added whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} on user cards
+  - Arrow icon wrapped in motion.div with whileHover={{ x: 4 }} for slide-right on hover
+  - Imported motion from framer-motion
+
+- 2. Dialog Entrance Animations
+  - alert-form-dialog.tsx: Wrapped scrollable content div in motion.div with initial={{ opacity: 0 }}, animate={{ opacity: 1 }}, transition={{ duration: 0.2 }}
+  - alert-detail-dialog.tsx: Same pattern applied to scrollable content
+  - user-form-dialog.tsx: Same pattern applied to scrollable content
+  - All three dialogs now have smooth fade-in when opened
+
+- 3. Mobile Responsiveness Improvements (dashboard-view.tsx)
+  - Stat cards grid: Changed from grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 to grid-cols-2 sm:grid-cols-4 (2 cards per row on mobile)
+  - Status breakdown: Changed from grid-cols-1 sm:grid-cols-3 to grid-cols-3 (3 cards always visible)
+  - Chart subtitle paragraphs: Added hidden sm:block to "Visualización de datos", "Últimos {chartRange} días", and "Por perfil y estado"
+  - Entity breakdown legend: Added flex-col sm:flex-row for vertical layout on mobile
+
+- 4. Mobile Responsiveness Improvements (entities-view.tsx)
+  - Profile distribution table: Wrapped in overflow-x-auto -mx-6 px-6 for horizontal scrolling on mobile
+  - Added min-w-[400px] to table to prevent content squishing
+  - Added text-[10px] sm:text-xs and text-[10px] sm:text-sm responsive sizing to all table cells
+  - Reduced padding on mobile (px-2 sm:px-3) for table cells
+
+- 5. Toast Notification Styling (globals.css)
+  - Added [data-sonner-toaster] custom properties: --normal-bg, --normal-border, --normal-text, --success-bg, --success-border, --success-text, --error-bg, --error-border, --error-text
+  - Added [data-sonner-toaster] [data-styled] styling: border-radius 10px, font-family, box-shadow
+  - Kept existing [data-sonner-toast] styling for backward compatibility
+
+- 6. Table Row Hover Left Border Indicator
+  - my-alerts-view.tsx: Added border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 to data rows and border-l-2 border-l-transparent to skeleton rows
+  - latest-alerts-view.tsx: Same pattern
+  - alert-history-view.tsx: Same pattern (works alongside selected state)
+  - users-view.tsx: Same pattern
+  - audit-log-view.tsx: Same pattern
+  - All skeleton rows also have border-l-2 border-l-transparent for consistent alignment
+
+- 7. Stat Card Number Animation (dashboard-view.tsx)
+  - Imported motion from framer-motion
+  - Wrapped card value in motion.span with key={card.value} for re-animation on change
+  - Added initial={{ scale: 0.8, opacity: 0 }}, animate={{ scale: 1, opacity: 1 }}, transition={{ duration: 0.3, ease: 'easeOut' }}
+
+Stage Summary:
+- 9 files modified: login-view.tsx, alert-form-dialog.tsx, alert-detail-dialog.tsx, user-form-dialog.tsx, dashboard-view.tsx, entities-view.tsx, globals.css, my-alerts-view.tsx, latest-alerts-view.tsx, alert-history-view.tsx, users-view.tsx, audit-log-view.tsx
+- Login page has smooth entrance animations with staggered user cards and hover effects
+- All three dialog forms have fade-in animations
+- Dashboard is more mobile-friendly with 2-column stat cards on small screens
+- Entities view table scrolls horizontally on mobile with smaller text
+- Toast notifications have custom Airtable-style colors (forest green for success, coral for error)
+- All table rows show coral left border indicator on hover
+- Stat card numbers animate with scale effect when values change
+- Lint passes with zero errors
+- Dev server running without errors
+
+---
+Task ID: QA-Round-5
+Agent: main (cron QA review)
+Task: Round 5 QA testing, login page, RBAC, entity view, styling polish
+
+## Current Project Status Description/Assessment
+- Interbank Alert System is now a comprehensive SPA with login, RBAC, and entity comparison
+- Nine rounds of development completed across multiple agents
+- The app now has 7 views: Dashboard, Entidades, Users & Permissions, Audit Log, My Alerts, Latest Alerts, Alert History
+- Plus a Login page shown when no user is authenticated
+- All lint checks pass, dev server compiles successfully
+
+## Current Goals / Completed Modifications / Verification Results
+
+### New Features Added This Round:
+
+1. **Login Page** (Task 3, Part 1) - New `login-view.tsx` component:
+   - Professional Airtable-inspired login page with cream pattern background
+   - Central login card with Shield icon, title, and "Inicie sesión para continuar" subtitle
+   - Quick-login user cards showing avatar, name, role badge, entity name
+   - Framer Motion animations: card fade+slide up, user cards stagger in, hover scale effect, arrow slide
+   - Loading skeletons while fetching users
+   - Footer with lock icon and "Plataforma segura · Costa Rica"
+   - Shows when `currentUser` is null (after initialization)
+
+2. **Login Flow** (Task 3, Part 2) - Updated `page.tsx`:
+   - Removed auto-user-selection; user must explicitly log in
+   - Shows LoginView when no currentUser after initialization
+   - Restores saved user from localStorage on page reload
+   - Sidebar LogOut button clears localStorage and sets currentUser to null
+
+3. **Role-Based Access Control** (Task 3, Part 3):
+   - **Admin**: Full access to all features (CRUD users, alerts, bulk ops, audit log)
+   - **Analyst**: Can create/edit/delete alerts and use bulk ops, but NOT manage users
+   - **Viewer**: Read-only access; cannot create/edit/delete alerts, manage users, or use bulk operations
+   - Non-admin users see "Solo administradores pueden gestionar usuarios" badge in Users view
+   - Viewer users see "Su rol solo permite consulta" badge in My Alerts
+   - Audit Log nav item hidden from viewers in sidebar
+   - Keyboard shortcuts (Ctrl+N) and Quick Action "Nueva Alerta" hidden for viewers
+
+4. **Entity Comparison View** (Task 4) - New `entities-view.tsx` component:
+   - Three entity cards with colored left borders (coral/forest/dark)
+   - Each card shows: name, code, alert count, user count, status breakdown bar, profile stats, economic affectation
+   - Bar chart comparing monthly alerts by entity using Recharts
+   - Profile distribution comparison table (Receptor/Víctima per entity with percentages)
+   - Total and economic affectation rows
+   - "Ver alertas" button navigates to Latest Alerts
+   - Added to NavTab type and sidebar navigation
+   - Nav order: Dashboard → Entidades → Usuarios → Registro de Actividad
+
+5. **Styling Improvements** (Task 5):
+   - Login page Framer Motion animations (card slide-up, user card stagger, hover scale)
+   - Dialog entrance animations on all three form dialogs
+   - Mobile responsiveness: 2-column stat cards on mobile, hidden chart subtitles, entity legend flex-col
+   - Entities view: horizontally scrollable table on mobile, responsive text sizing
+   - Custom Sonner toast styling (forest green success, coral error)
+   - Table row hover border indicator (coral left border) across all 5 table views
+   - Stat card number animation with motion.span (scale effect on value change)
+
+### QA Verification:
+- Dashboard, Users, My Alerts, Latest Alerts, Alert History, Audit Log all tested
+- Quick-create from Dashboard tested (works via JS click, AnimatePresence timing may delay by 0.2s)
+- All APIs returning 200 (verified via dev logs)
+- Lint passes with zero errors
+- Dev server compiles successfully (had intermittent port conflicts, resolved by restarting)
+
+## Unresolved Issues or Risks
+1. **No real authentication backend** - Login page uses quick-login cards, not real auth (no passwords, no sessions)
+2. **Dev server stability** - Server occasionally becomes unresponsive after multiple agent-browser connections; needs process restart
+3. **AnimatePresence timing** - Quick-create from Dashboard has a slight delay due to exit/enter animations
+4. **No PDF export** - Could add PDF report generation for formal documents
+5. **No real-time notifications** - Polling every 30s instead of WebSocket push
+6. **Entity view "Ver alertas"** - Currently navigates to Latest Alerts but doesn't filter by entity
+
+### Priority Recommendations for Next Phase
+1. Add PDF report generation using the pdf skill
+2. Add real authentication with NextAuth.js and password-based login
+3. Add WebSocket real-time notifications between entities
+4. Fix "Ver alertas" button to pass entity filter parameter
+5. Add alert search by description (currently only name/ID)
+6. Add dark mode toggle with next-themes
+7. Add responsive mobile navigation redesign

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
+import { motion } from 'framer-motion'
 
 interface Entity {
   id: string
@@ -139,7 +140,12 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
           </p>
         </DialogHeader>
 
-        <div className="px-8 py-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="px-8 py-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar"
+        >
           {/* Financial Entity */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-[#181d26]">Entidad Financiera</Label>
@@ -251,7 +257,7 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </motion.div>
 
         <div className="px-8 pb-8 pt-2 flex items-center justify-end gap-3 border-t border-[#dddddd]">
           <Button

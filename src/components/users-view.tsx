@@ -15,7 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { UserFormDialog } from '@/components/user-form-dialog'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
-import { Plus, Pencil, Trash2, Search, Users, UserPlus } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Users, UserPlus, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -141,14 +141,22 @@ export function UsersView() {
         <div>
           <h2 className="text-2xl font-medium text-[#181d26]">Usuarios y Permisos</h2>
           <p className="text-[#41454d] mt-1">Gestión de usuarios del sistema interbancario</p>
+          {currentUser?.role !== 'admin' && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-[#aa2d00] bg-[#aa2d00]/5 px-3 py-2 rounded-[8px] border border-[#aa2d00]/10 w-fit">
+              <Shield size={12} />
+              Solo administradores pueden gestionar usuarios
+            </div>
+          )}
         </div>
-        <Button
-          onClick={() => { setEditUser(null); setFormOpen(true) }}
-          className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#0d1218] active:scale-[0.98] transition-transform"
-        >
-          <Plus size={18} className="mr-2" />
-          Agregar Usuario
-        </Button>
+        {currentUser?.role === 'admin' && (
+          <Button
+            onClick={() => { setEditUser(null); setFormOpen(true) }}
+            className="bg-[#181d26] text-white rounded-[12px] px-6 py-4 h-auto text-base font-medium hover:bg-[#0d1218] active:scale-[0.98] transition-transform"
+          >
+            <Plus size={18} className="mr-2" />
+            Agregar Usuario
+          </Button>
+        )}
       </div>
 
       {/* Role stats row */}
@@ -207,13 +215,15 @@ export function UsersView() {
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden lg:table-cell">Identificación</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Entidad</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Rol</TableHead>
-              <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider text-right">Acciones</TableHead>
+              {currentUser?.role === 'admin' && (
+                <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider text-right">Acciones</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <TableRow key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                <TableRow key={i} className={`border-l-2 border-l-transparent ${i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
                   <TableCell><div className="flex items-center gap-3"><Skeleton className="h-8 w-8 rounded-full" /><Skeleton className="h-4 w-24" /></div></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-32" /></TableCell>
@@ -226,7 +236,7 @@ export function UsersView() {
               ))
             ) : filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-16 text-[#41454d]">
+                <TableCell colSpan={currentUser?.role === 'admin' ? 8 : 7} className="text-center py-16 text-[#41454d]">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-14 h-14 rounded-full bg-[#f8fafc] border border-[#dddddd] flex items-center justify-center">
                       <UserPlus size={24} className="text-[#9297a0]" />
@@ -242,7 +252,7 @@ export function UsersView() {
               </TableRow>
             ) : (
               filteredUsers.map((user, idx) => (
-                <TableRow key={user.id} className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/50 transition-colors cursor-default ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
+                <TableRow key={user.id} className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/50 transition-colors cursor-default border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div
@@ -284,26 +294,28 @@ export function UsersView() {
                       {roleLabels[user.role] || user.role}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-[#41454d] hover:text-[#181d26] hover:bg-[#f8fafc]"
-                        onClick={() => { setEditUser(user); setFormOpen(true) }}
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-[#9297a0] hover:text-[#aa2d00] hover:bg-[#aa2d00]/5"
-                        onClick={() => setDeleteUser(user)}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {currentUser?.role === 'admin' && (
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#41454d] hover:text-[#181d26] hover:bg-[#f8fafc]"
+                          onClick={() => { setEditUser(user); setFormOpen(true) }}
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#9297a0] hover:text-[#aa2d00] hover:bg-[#aa2d00]/5"
+                          onClick={() => setDeleteUser(user)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

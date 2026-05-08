@@ -23,7 +23,7 @@ const tabLabels: Record<string, string> = {
 }
 
 export function KeyboardShortcuts() {
-  const { setCreateAlertOpen, setActiveTab, setSearchFocused } = useAppStore()
+  const { setCreateAlertOpen, setActiveTab, setSearchFocused, currentUser } = useAppStore()
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -34,9 +34,13 @@ export function KeyboardShortcuts() {
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable
 
-      // Ctrl+N / Cmd+N: Open create alert dialog
+      // Ctrl+N / Cmd+N: Open create alert dialog (only for non-viewers)
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault()
+        if (currentUser?.role === 'viewer') {
+          toast.info('Su rol solo permite consulta', { duration: 2000 })
+          return
+        }
         setCreateAlertOpen(true)
         toast.info('Atajo: Nueva Alerta', { duration: 2000 })
         return
@@ -54,8 +58,15 @@ export function KeyboardShortcuts() {
       if (e.altKey && !e.ctrlKey && !e.metaKey && tabMap[e.key]) {
         e.preventDefault()
         const tab = tabMap[e.key]
-        const label = tabLabels[e.key]
+
+        // Viewers can't access audit log
+        if (tab === 'audit-log' && currentUser?.role === 'viewer') {
+          toast.info('Acceso no permitido para su rol', { duration: 2000 })
+          return
+        }
+
         setActiveTab(tab)
+        const label = tabLabels[e.key]
         if (!isInputFocused) {
           toast.info(`Atajo: ${label}`, { duration: 2000 })
         }
@@ -65,7 +76,7 @@ export function KeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setCreateAlertOpen, setActiveTab, setSearchFocused])
+  }, [setCreateAlertOpen, setActiveTab, setSearchFocused, currentUser])
 
   return null
 }

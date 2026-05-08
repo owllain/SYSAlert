@@ -10,20 +10,21 @@ import { MyAlertsView } from '@/components/my-alerts-view'
 import { LatestAlertsView } from '@/components/latest-alerts-view'
 import { AlertHistoryView } from '@/components/alert-history-view'
 import { AuditLogView } from '@/components/audit-log-view'
+import { EntitiesView } from '@/components/entities-view'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
+import { LoginView } from '@/components/login-view'
 import { AnimatePresence, motion } from 'framer-motion'
 
 export default function Home() {
   const { activeTab, currentUser, setCurrentUser, sidebarOpen, setSidebarOpen } = useAppStore()
   const [initialized, setInitialized] = useState(false)
 
-  // Initialize: seed data and set current user
+  // Initialize: seed data and restore saved user
   useEffect(() => {
     async function init() {
       try {
         // Seed data
-        const seedRes = await fetch('/api/seed')
-        const seedData = await seedRes.json()
+        await fetch('/api/seed')
 
         // Check localStorage for saved user
         const savedUserId = localStorage.getItem('currentUserId')
@@ -41,41 +42,6 @@ export default function Home() {
               role: savedUser.role,
               financialEntityId: savedUser.financialEntityId,
               financialEntityName: savedUser.financialEntity?.name || '',
-            })
-            setInitialized(true)
-            return
-          }
-        }
-
-        // Use default admin user from seed or first available
-        if (seedData.defaultUser) {
-          const u = seedData.defaultUser
-          const usersRes = await fetch('/api/users')
-          const users = await usersRes.json()
-          const defaultUser = Array.isArray(users) ? users.find((us: { id: string }) => us.id === u.id) : null
-
-          setCurrentUser({
-            id: u.id,
-            name: u.name,
-            username: u.username,
-            email: u.email,
-            role: u.role,
-            financialEntityId: u.financialEntityId,
-            financialEntityName: defaultUser?.financialEntity?.name || 'Banco Popular',
-          })
-        } else {
-          const usersRes = await fetch('/api/users')
-          const users = await usersRes.json()
-          if (Array.isArray(users) && users.length > 0) {
-            const firstUser = users[0]
-            setCurrentUser({
-              id: firstUser.id,
-              name: firstUser.name,
-              username: firstUser.username,
-              email: firstUser.email,
-              role: firstUser.role,
-              financialEntityId: firstUser.financialEntityId,
-              financialEntityName: firstUser.financialEntity?.name || '',
             })
           }
         }
@@ -107,6 +73,8 @@ export default function Home() {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView />
+      case 'entities':
+        return <EntitiesView />
       case 'users':
         return <UsersView />
       case 'my-alerts':
@@ -133,6 +101,11 @@ export default function Home() {
         </div>
       </div>
     )
+  }
+
+  // Show login page when no user is authenticated
+  if (!currentUser) {
+    return <LoginView />
   }
 
   return (
@@ -187,7 +160,7 @@ export default function Home() {
             </span>
             <span className="text-[#dddddd] hidden sm:inline">|</span>
             <span className="text-xs text-[#9297a0] hidden sm:inline">
-              Ctrl+N Nueva Alerta · Ctrl+K Buscar
+              {currentUser?.role !== 'viewer' ? 'Ctrl+N Nueva Alerta · ' : ''}Ctrl+K Buscar
             </span>
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { AlertTriangle } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 interface Alert {
   id: string
@@ -192,7 +193,12 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
           </p>
         </DialogHeader>
 
-        <div className="px-8 py-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="px-8 py-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar"
+        >
           {/* Profile */}
           <div className="space-y-3">
             <Label className="text-sm font-medium text-[#181d26]">Perfil</Label>
@@ -325,7 +331,7 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
               className="rounded-[6px] border-[#dddddd] min-h-[120px] resize-none focus:border-[#181d26] focus:ring-[#181d26]/10"
             />
           </div>
-        </div>
+        </motion.div>
 
         <div className="px-8 pb-8 pt-2 flex items-center justify-end gap-3 border-t border-[#dddddd]">
           <Button

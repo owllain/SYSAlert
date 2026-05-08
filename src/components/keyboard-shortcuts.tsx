@@ -46,13 +46,8 @@ export function KeyboardShortcuts() {
         return
       }
 
-      // Ctrl+K / Cmd+K: Focus search input
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault()
-        setSearchFocused(true)
-        toast.info('Atajo: Buscar', { duration: 2000 })
-        return
-      }
+      // Ctrl+K / Cmd+K: Now handled by CommandPalette component
+      // This shortcut is intercepted by the CommandPalette, so we don't need to handle it here
 
       // Alt+1-6: Switch tabs (only when not in an input)
       if (e.altKey && !e.ctrlKey && !e.metaKey && tabMap[e.key]) {

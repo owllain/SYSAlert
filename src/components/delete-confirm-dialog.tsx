@@ -22,7 +22,7 @@ interface DeleteConfirmDialogProps {
 export function DeleteConfirmDialog({ open, onOpenChange, onConfirm, title, description }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="rounded-[12px]">
+      <AlertDialogContent className="rounded-[12px] bg-white dark:bg-[#1a1d27]">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-[#181d26]">{title}</AlertDialogTitle>
           <AlertDialogDescription className="text-[#41454d]">

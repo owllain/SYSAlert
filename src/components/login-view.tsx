@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { Shield, Lock, ArrowRight, Building2 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useTheme } from 'next-themes'
 
 interface UserOption {
   id: string; name: string; username: string; email: string
@@ -58,6 +59,9 @@ export function LoginView() {
   const { setCurrentUser } = useAppStore()
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(true)
+  const { resolvedTheme } = useTheme()
+
+  const isDark = resolvedTheme === 'dark'
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
@@ -76,7 +80,7 @@ export function LoginView() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Animated gradient background */}
+      {/* Animated gradient background - same in both modes */}
       <div
         className="absolute inset-0"
         style={{
@@ -104,7 +108,7 @@ export function LoginView() {
       `}</style>
 
       {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-[#181d26]/60" />
+      <div className={`absolute inset-0 ${isDark ? 'bg-[#0f1117]/70' : 'bg-[#181d26]/60'}`} />
 
       {/* Floating particles */}
       <FloatingParticles />
@@ -115,25 +119,27 @@ export function LoginView() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="rounded-[16px] overflow-hidden border border-white/20"
+          className="rounded-[16px] overflow-hidden border border-white/20 dark:border-white/10"
           style={{
-            background: 'rgba(255, 255, 255, 0.85)',
+            background: isDark ? 'rgba(26, 29, 39, 0.90)' : 'rgba(255, 255, 255, 0.85)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            boxShadow: isDark
+              ? '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+              : '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
           }}
         >
           {/* Header */}
           <div className="px-8 pt-10 pb-8 text-center">
             <motion.div
-              className="w-14 h-14 rounded-[12px] bg-[#181d26] flex items-center justify-center mx-auto mb-5"
+              className="w-14 h-14 rounded-[12px] bg-[#181d26] dark:bg-[#2d3140] flex items-center justify-center mx-auto mb-5"
               style={{ animation: 'logoPulse 3s ease-in-out infinite' }}
               whileHover={{ scale: 1.05 }}
             >
               <Shield size={28} className="text-white" />
             </motion.div>
-            <h1 className="text-xl font-medium text-[#181d26] mb-1">Sistema de Alertas Interbancario</h1>
-            <p className="text-sm text-[#41454d]">Inicie sesión para continuar</p>
+            <h1 className="text-xl font-medium text-[#181d26] dark:text-[#e8eaf0] mb-1">Sistema de Alertas Interbancario</h1>
+            <p className="text-sm text-[#41454d] dark:text-[#9ea3b0]">Inicie sesión para continuar</p>
           </div>
 
           {/* User Cards */}
@@ -141,7 +147,7 @@ export function LoginView() {
             {loading ? (
               <div className="space-y-3">
                 {[1,2,3].map(i => (
-                  <div key={i} className="h-[72px] rounded-[10px] bg-[#f8fafc] animate-pulse" />
+                  <div key={i} className="h-[72px] rounded-[10px] bg-[#f8fafc] dark:bg-[#242835] animate-pulse" />
                 ))}
               </div>
             ) : (
@@ -165,7 +171,7 @@ export function LoginView() {
                     />
                     <button
                       onClick={() => handleLogin(user)}
-                      className="group w-full flex items-center gap-4 p-4 rounded-[10px] border border-[#dddddd]/60 hover:border-[#9297a0] transition-all duration-150 text-left relative overflow-hidden bg-white/50"
+                      className="group w-full flex items-center gap-4 p-4 rounded-[10px] border border-[#dddddd]/60 dark:border-[#2d3140]/60 hover:border-[#9297a0] dark:hover:border-[#3d4250] transition-all duration-150 text-left relative overflow-hidden bg-white/50 dark:bg-[#1a1d27]/50"
                     >
                       {/* Shine pseudo-element via CSS */}
                       <span
@@ -187,14 +193,14 @@ export function LoginView() {
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#181d26] truncate">{user.name}</p>
+                        <p className="text-sm font-medium text-[#181d26] dark:text-[#e8eaf0] truncate">{user.name}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <Building2 size={10} className="text-[#41454d]" />
-                          <span className="text-xs text-[#41454d] truncate">{user.financialEntity?.name}</span>
+                          <Building2 size={10} className="text-[#41454d] dark:text-[#9ea3b0]" />
+                          <span className="text-xs text-[#41454d] dark:text-[#9ea3b0] truncate">{user.financialEntity?.name}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-[4px] bg-[#f8fafc] text-[#41454d] border border-[#dddddd]/60">
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-[4px] bg-[#f8fafc] dark:bg-[#242835] text-[#41454d] dark:text-[#9ea3b0] border border-[#dddddd]/60 dark:border-[#2d3140]/60">
                           {roleLabels[user.role]}
                         </span>
                         <motion.div
@@ -202,7 +208,7 @@ export function LoginView() {
                           whileHover={{ x: 4 }}
                           transition={{ duration: 0.15 }}
                         >
-                          <ArrowRight size={16} className="text-[#dddddd] group-hover:text-[#aa2d00] transition-colors" />
+                          <ArrowRight size={16} className="text-[#dddddd] dark:text-[#2d3140] group-hover:text-[#aa2d00] dark:group-hover:text-[#e0522a] transition-colors" />
                         </motion.div>
                       </div>
                     </button>
@@ -213,9 +219,9 @@ export function LoginView() {
           </div>
 
           {/* Footer */}
-          <div className="px-8 py-4 bg-white/40 border-t border-[#dddddd]/40 flex items-center justify-center gap-2">
-            <Lock size={12} className="text-[#41454d]/50" />
-            <span className="text-[11px] text-[#41454d]/60">Plataforma segura · Costa Rica</span>
+          <div className="px-8 py-4 bg-white/40 dark:bg-[#0f1117]/40 border-t border-[#dddddd]/40 dark:border-[#2d3140]/40 flex items-center justify-center gap-2">
+            <Lock size={12} className="text-[#41454d]/50 dark:text-[#6b7080]/50" />
+            <span className="text-[11px] text-[#41454d]/60 dark:text-[#6b7080]/60">Plataforma segura · Costa Rica</span>
           </div>
         </motion.div>
       </div>

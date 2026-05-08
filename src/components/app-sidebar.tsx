@@ -11,9 +11,9 @@ const entityDotColors: Record<string, string> = {
 }
 
 const entityBadgeColors: Record<string, { bg: string; text: string; dot: string }> = {
-  BP: { bg: 'bg-[#aa2d00]/10', text: 'text-[#aa2d00]', dot: 'bg-[#aa2d00]' },
-  BCR: { bg: 'bg-[#0a2e0e]/10', text: 'text-[#0a2e0e]', dot: 'bg-[#0a2e0e]' },
-  BNC: { bg: 'bg-[#181d26]/10', text: 'text-[#181d26]', dot: 'bg-[#181d26]' },
+  BP: { bg: 'bg-[#aa2d00]/10 dark:bg-[#e0522a]/15', text: 'text-[#aa2d00] dark:text-[#e0522a]', dot: 'bg-[#aa2d00] dark:bg-[#e0522a]' },
+  BCR: { bg: 'bg-[#0a2e0e]/10 dark:bg-[#1a5c2a]/15', text: 'text-[#0a2e0e] dark:text-[#1a5c2a]', dot: 'bg-[#0a2e0e] dark:bg-[#1a5c2a]' },
+  BNC: { bg: 'bg-[#181d26]/10 dark:bg-[#2d3140]/30', text: 'text-[#181d26] dark:text-[#e8eaf0]', dot: 'bg-[#181d26] dark:bg-[#2d3140]' },
 }
 
 interface AlertCount {
@@ -68,28 +68,28 @@ export function AppSidebar() {
   ]
 
   return (
-    <aside className={`fixed left-0 top-0 bottom-0 w-[256px] bg-white border-r border-[#dddddd] z-40 flex flex-col lg:relative lg:z-auto transform transition-transform duration-300 ease-in-out ${!sidebarOpen ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}`}>
+    <aside className={`fixed left-0 top-0 bottom-0 w-[256px] bg-white dark:bg-[#1a1d27] border-r border-[#dddddd] dark:border-[#2d3140] z-40 flex flex-col lg:relative lg:z-auto transform transition-transform duration-300 ease-in-out ${!sidebarOpen ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}`}>
       {/* Logo area */}
-      <div className="h-[64px] flex items-center justify-between px-5 border-b border-[#dddddd] shrink-0">
+      <div className="h-[64px] flex items-center justify-between px-5 border-b border-[#dddddd] dark:border-[#2d3140] shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-[10px] bg-[#181d26] flex items-center justify-center relative">
+          <div className="w-9 h-9 rounded-[10px] bg-[#181d26] dark:bg-[#2d3140] flex items-center justify-center relative">
             <Shield size={18} className="text-white" />
             {/* Entity color dot */}
             {entityCode && (
               <div
-                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
+                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-[#1a1d27]"
                 style={{ backgroundColor: entityColor }}
               />
             )}
           </div>
           <div>
-            <p className="text-[#181d26] font-medium text-sm leading-tight">Sistema de Alertas</p>
-            <p className="text-[#41454d] text-[11px] leading-tight">Interbancario CR</p>
+            <p className="text-[#181d26] dark:text-[#e8eaf0] font-medium text-sm leading-tight">Sistema de Alertas</p>
+            <p className="text-[#41454d] dark:text-[#9ea3b0] text-[11px] leading-tight">Interbancario CR</p>
           </div>
         </div>
         {/* Close button for mobile sidebar */}
         <button
-          className="lg:hidden w-8 h-8 rounded-[8px] flex items-center justify-center text-[#41454d] hover:text-[#181d26] hover:bg-[#f8fafc] transition-colors"
+          className="lg:hidden w-8 h-8 rounded-[8px] flex items-center justify-center text-[#41454d] dark:text-[#9ea3b0] hover:text-[#181d26] dark:hover:text-[#e8eaf0] hover:bg-[#f8fafc] dark:hover:bg-[#242835] transition-colors"
           onClick={() => useAppStore.getState().setSidebarOpen(false)}
         >
           <X size={18} />
@@ -99,7 +99,7 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 py-5 px-3 overflow-y-auto custom-scrollbar">
         {/* Section label */}
-        <p className="px-3 mb-2 text-[10px] font-medium uppercase tracking-[0.08em] text-[#41454d]/60">General</p>
+        <p className="px-3 mb-2 text-[10px] font-medium uppercase tracking-[0.08em] text-[#41454d]/60 dark:text-[#6b7080]">General</p>
 
         {/* Main items */}
         <div className="space-y-0.5">
@@ -112,15 +112,15 @@ export function AppSidebar() {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm transition-all duration-200 relative group ${
                   isActive
-                    ? 'bg-[#f8fafc] text-[#181d26] font-medium'
-                    : 'text-[#41454d] hover:bg-[#f8fafc]/60 hover:text-[#181d26]'
+                    ? 'bg-[#f8fafc] dark:bg-[#242835] text-[#181d26] dark:text-[#e8eaf0] font-medium'
+                    : 'text-[#41454d] dark:text-[#9ea3b0] hover:bg-[#f8fafc]/60 dark:hover:bg-[#242835]/60 hover:text-[#181d26] dark:hover:text-[#e8eaf0]'
                 }`}
               >
                 {/* Left border indicator for active state */}
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00] transition-all duration-200" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00] dark:bg-[#e0522a] transition-all duration-200" />
                 )}
-                <Icon size={17} className={isActive ? 'text-[#aa2d00]' : 'text-[#41454d]/70 group-hover:text-[#181d26]'} />
+                <Icon size={17} className={isActive ? 'text-[#aa2d00] dark:text-[#e0522a]' : 'text-[#41454d]/70 dark:text-[#6b7080] group-hover:text-[#181d26] dark:group-hover:text-[#e8eaf0]'} />
                 <span className="flex-1 text-left">{item.label}</span>
               </button>
             )
@@ -128,18 +128,18 @@ export function AppSidebar() {
         </div>
 
         {/* Divider */}
-        <div className="my-4 mx-3 h-px bg-[#dddddd]/70" />
+        <div className="my-4 mx-3 h-px bg-[#dddddd]/70 dark:bg-[#2d3140]/70" />
 
         {/* Alerts section */}
         <div>
           <button
             onClick={() => setAlertsOpen(!alertsOpen)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-[#41454d]/60 text-[10px] font-medium uppercase tracking-[0.08em] hover:text-[#181d26] transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-[#41454d]/60 dark:text-[#6b7080] text-[10px] font-medium uppercase tracking-[0.08em] hover:text-[#181d26] dark:hover:text-[#e8eaf0] transition-colors"
           >
             {alertsOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             <span>Alertas</span>
             {alertCount.myAlerts > 0 && (
-              <span className="ml-auto bg-[#aa2d00] text-white text-[9px] font-medium rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+              <span className="ml-auto bg-[#aa2d00] dark:bg-[#e0522a] text-white text-[9px] font-medium rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                 {alertCount.myAlerts}
               </span>
             )}
@@ -156,20 +156,20 @@ export function AppSidebar() {
                     onClick={() => setActiveTab(item.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm transition-all duration-200 pl-7 relative group ${
                       isActive
-                        ? 'bg-[#f8fafc] text-[#181d26] font-medium'
-                        : 'text-[#41454d] hover:bg-[#f8fafc]/60 hover:text-[#181d26]'
+                        ? 'bg-[#f8fafc] dark:bg-[#242835] text-[#181d26] dark:text-[#e8eaf0] font-medium'
+                        : 'text-[#41454d] dark:text-[#9ea3b0] hover:bg-[#f8fafc]/60 dark:hover:bg-[#242835]/60 hover:text-[#181d26] dark:hover:text-[#e8eaf0]'
                     }`}
                   >
                     {/* Left border indicator for active state */}
                     {isActive && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00] transition-all duration-200" />
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#aa2d00] dark:bg-[#e0522a] transition-all duration-200" />
                     )}
-                    <Icon size={16} className={isActive ? 'text-[#aa2d00]' : 'text-[#41454d]/70 group-hover:text-[#181d26]'} />
+                    <Icon size={16} className={isActive ? 'text-[#aa2d00] dark:text-[#e0522a]' : 'text-[#41454d]/70 dark:text-[#6b7080] group-hover:text-[#181d26] dark:group-hover:text-[#e8eaf0]'} />
                     <span className="flex-1 text-left">{item.label}</span>
                     {/* Badge for alert counts */}
                     {item.badge !== undefined && item.badge > 0 && (
                       <span className={`text-[10px] font-medium rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 ${
-                        isActive ? 'bg-[#aa2d00]/15 text-[#aa2d00]' : 'bg-[#f8fafc] text-[#41454d]'
+                        isActive ? 'bg-[#aa2d00]/15 dark:bg-[#e0522a]/15 text-[#aa2d00] dark:text-[#e0522a]' : 'bg-[#f8fafc] dark:bg-[#242835] text-[#41454d] dark:text-[#9ea3b0]'
                       }`}>
                         {item.badge}
                       </span>
@@ -183,23 +183,23 @@ export function AppSidebar() {
       </nav>
 
       {/* User Profile Section */}
-      <div className="border-t border-[#dddddd] p-4 shrink-0">
+      <div className="border-t border-[#dddddd] dark:border-[#2d3140] p-4 shrink-0">
         {currentUser ? (
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-9 h-9 rounded-full bg-[#181d26] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full bg-[#181d26] dark:bg-[#2d3140] flex items-center justify-center">
                 <span className="text-white text-sm font-medium">
                   {currentUser.name.charAt(0).toUpperCase()}
                 </span>
               </div>
               {/* Entity color dot on avatar */}
               <div
-                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
+                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-[#1a1d27]"
                 style={{ backgroundColor: entityColor }}
               />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#181d26] truncate leading-tight">{currentUser.name}</p>
+              <p className="text-sm font-medium text-[#181d26] dark:text-[#e8eaf0] truncate leading-tight">{currentUser.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[9px] font-medium ${entityBadge.bg} ${entityBadge.text}`}>
                   <span className={`w-1 h-1 rounded-full ${entityBadge.dot}`} />
@@ -208,7 +208,7 @@ export function AppSidebar() {
               </div>
             </div>
             <button
-              className="text-[#41454d]/50 hover:text-[#aa2d00] transition-colors p-1"
+              className="text-[#41454d]/50 dark:text-[#6b7080] hover:text-[#aa2d00] dark:hover:text-[#e0522a] transition-colors p-1"
               onClick={() => {
                 localStorage.removeItem('currentUserId')
                 setCurrentUser(null)
@@ -219,11 +219,11 @@ export function AppSidebar() {
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#f8fafc] flex items-center justify-center">
-              <span className="text-[#41454d] text-sm">?</span>
+            <div className="w-9 h-9 rounded-full bg-[#f8fafc] dark:bg-[#242835] flex items-center justify-center">
+              <span className="text-[#41454d] dark:text-[#9ea3b0] text-sm">?</span>
             </div>
             <div>
-              <p className="text-sm text-[#41454d]">Sin sesión</p>
+              <p className="text-sm text-[#41454d] dark:text-[#9ea3b0]">Sin sesión</p>
             </div>
           </div>
         )}

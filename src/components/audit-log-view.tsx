@@ -353,7 +353,7 @@ export function AuditLogView() {
                 return (
                   <TableRow
                     key={log.id}
-                    className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/60 transition-colors border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
+                    className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/60 transition-colors border-l-2 border-l-transparent hover:border-l-[#aa2d00] dark:hover:border-l-[#e0522a]/30 dark:border-l-[#e0522a]/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}
                   >
                     <TableCell className="text-[#41454d] text-sm whitespace-nowrap">
                       <TooltipProvider>

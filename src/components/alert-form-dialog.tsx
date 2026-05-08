@@ -13,7 +13,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
 
 interface Alert {
@@ -29,6 +30,22 @@ interface Alert {
   financialEntityId: string
 }
 
+interface DuplicateAlert {
+  id: string
+  profile: string
+  economicAffectation: boolean
+  personName: string
+  personId: string
+  personIdType: string
+  description: string
+  status: string
+  financialEntityId: string
+  financialEntity: { id: string; name: string; code: string }
+  creator: { id: string; name: string; username: string; financialEntity: { name: string } }
+  createdAt: string
+  updatedAt: string
+}
+
 interface AlertFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -36,6 +53,37 @@ interface AlertFormDialogProps {
   financialEntityId: string
   userId: string
   onSaved: () => void
+}
+
+const statusLabels: Record<string, string> = {
+  active: 'Activa',
+  resolved: 'Resuelta',
+  dismissed: 'Descartada',
+}
+
+const entityColors: Record<string, string> = {
+  'BP': 'bg-[#aa2d00]',
+  'BCR': 'bg-[#0a2e0e]',
+  'BNC': 'bg-[#1a3a5c]',
+}
+
+function getEntityDotColor(code: string): string {
+  return entityColors[code] || 'bg-[#41454d]'
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Ahora mismo'
+  if (diffMins < 60) return `Hace ${diffMins} min`
+  if (diffHours < 24) return `Hace ${diffHours}h`
+  if (diffDays < 7) return `Hace ${diffDays}d`
+  return date.toLocaleDateString('es-CR', { day: '2-digit', month: 'short' })
 }
 
 export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntityId, userId, onSaved }: AlertFormDialogProps) {
@@ -47,27 +95,35 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [idError, setIdError] = useState('')
-  const [duplicateWarning, setDuplicateWarning] = useState<{ found: boolean; count: number; entities: string[] } | null>(null)
+  const [duplicateAlerts, setDuplicateAlerts] = useState<DuplicateAlert[]>([])
   const [duplicateChecking, setDuplicateChecking] = useState(false)
+  const [forceCreate, setForceCreate] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const checkDuplicates = useCallback(async (id: string) => {
-    if (!id.trim()) {
-      setDuplicateWarning(null)
+  const checkDuplicates = useCallback(async (id: string, idType: string) => {
+    // Check if the ID has valid length before making API call
+    let validLength = false
+    if (idType === 'cedula') {
+      validLength = /^\d{9}$/.test(id)
+    } else if (idType === 'dimex') {
+      validLength = /^\d{12}$/.test(id)
+    } else if (idType === 'pasaporte') {
+      validLength = id.length > 0
+    }
+
+    if (!validLength) {
+      setDuplicateAlerts([])
       setDuplicateChecking(false)
       return
     }
+
     setDuplicateChecking(true)
+    setForceCreate(false)
     try {
-      const res = await fetch(`/api/alerts?search=${encodeURIComponent(id)}`)
+      const res = await fetch(`/api/alerts/check-duplicate?personId=${encodeURIComponent(id)}&personIdType=${encodeURIComponent(idType)}`)
       if (res.ok) {
-        const alerts = await res.json()
-        if (alerts.length > 0) {
-          const entities = [...new Set(alerts.map((a: { financialEntity?: { name: string } }) => a.financialEntity?.name).filter(Boolean))] as string[]
-          setDuplicateWarning({ found: true, count: alerts.length, entities })
-        } else {
-          setDuplicateWarning(null)
-        }
+        const data = await res.json()
+        setDuplicateAlerts(data.duplicate ? data.existingAlerts : [])
       }
     } catch {
       // Silently fail - duplicate check is informational only
@@ -104,8 +160,9 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
       setDescription('')
     }
     setIdError('')
-    setDuplicateWarning(null)
+    setDuplicateAlerts([])
     setDuplicateChecking(false)
+    setForceCreate(false)
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
       debounceRef.current = null
@@ -133,13 +190,18 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
     return true
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (overrideDuplicate = false) => {
     if (!personName || !personId || !description) {
       toast.error('Todos los campos son requeridos')
       return
     }
 
     if (!validateId(personId, personIdType)) return
+
+    // If duplicates found and not forcing create, don't submit
+    if (duplicateAlerts.length > 0 && !overrideDuplicate) {
+      return
+    }
 
     setSaving(true)
     try {
@@ -181,9 +243,11 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
     }
   }
 
+  const hasDuplicates = duplicateAlerts.length > 0
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] rounded-[12px] p-0 gap-0">
+      <DialogContent className="bg-white dark:bg-[#1a1d27] sm:max-w-[560px] rounded-[12px] p-0 gap-0">
         <DialogHeader className="px-8 pt-8 pb-0">
           <DialogTitle className="text-xl font-medium text-[#181d26]">
             {editAlert ? 'Editar Alerta' : 'Crear Alerta'}
@@ -253,7 +317,7 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
           {/* Person ID Type */}
           <div className="space-y-3">
             <Label className="text-sm font-medium text-[#181d26]">Tipo de Identificación</Label>
-            <RadioGroup value={personIdType} onValueChange={(v) => { setPersonIdType(v); setPersonId(''); setIdError(''); setDuplicateWarning(null); setDuplicateChecking(false); if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null } }} className="flex flex-col gap-2">
+            <RadioGroup value={personIdType} onValueChange={(v) => { setPersonIdType(v); setPersonId(''); setIdError(''); setDuplicateAlerts([]); setDuplicateChecking(false); setForceCreate(false); if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null } }} className="flex flex-col gap-2">
               <label htmlFor="a-cedula" className={`flex items-center gap-2.5 px-4 py-2.5 rounded-[10px] border cursor-pointer transition-all ${
                 personIdType === 'cedula' ? 'border-[#181d26] bg-[#181d26]/5' : 'border-[#dddddd] hover:border-[#9297a0]'
               }`}>
@@ -278,45 +342,100 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
           {/* Person ID Number */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-[#181d26]">Número de Identificación</Label>
-            <Input
-              value={personId}
-              onChange={(e) => {
-                const value = e.target.value
-                setPersonId(value)
-                if (idError) validateId(value, personIdType)
+            <div className="relative">
+              <Input
+                value={personId}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setPersonId(value)
+                  setForceCreate(false)
+                  if (idError) validateId(value, personIdType)
 
-                // Debounced duplicate check
-                if (debounceRef.current) {
-                  clearTimeout(debounceRef.current)
+                  // Debounced duplicate check
+                  if (debounceRef.current) {
+                    clearTimeout(debounceRef.current)
+                  }
+                  if (!value.trim()) {
+                    setDuplicateAlerts([])
+                    setDuplicateChecking(false)
+                    return
+                  }
+                  setDuplicateChecking(true)
+                  debounceRef.current = setTimeout(() => {
+                    checkDuplicates(value, personIdType)
+                  }, 500)
+                }}
+                placeholder={
+                  personIdType === 'cedula' ? '000000000' :
+                  personIdType === 'dimex' ? '000000000000' :
+                  'Número de pasaporte'
                 }
-                if (!value.trim()) {
-                  setDuplicateWarning(null)
-                  setDuplicateChecking(false)
-                  return
-                }
-                setDuplicateChecking(true)
-                debounceRef.current = setTimeout(() => {
-                  checkDuplicates(value)
-                }, 500)
-              }}
-              placeholder={
-                personIdType === 'cedula' ? '000000000' :
-                personIdType === 'dimex' ? '000000000000' :
-                'Número de pasaporte'
-              }
-              className={`rounded-[6px] h-11 ${idError ? 'border-[#aa2d00] focus:border-[#aa2d00]' : 'border-[#dddddd] focus:border-[#181d26]'} focus:ring-[#181d26]/10`}
-            />
+                className={`rounded-[6px] h-11 pr-8 ${idError ? 'border-[#aa2d00] focus:border-[#aa2d00]' : hasDuplicates ? 'border-amber-400 focus:border-amber-500' : 'border-[#dddddd] focus:border-[#181d26]'} focus:ring-[#181d26]/10`}
+              />
+              {duplicateChecking && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 size={14} className="text-[#9297a0] animate-spin" />
+                </div>
+              )}
+            </div>
             {idError && <p className="text-xs text-[#aa2d00] mt-1">{idError}</p>}
-            {duplicateChecking && (
-              <div className="flex items-center gap-2 mt-2 text-xs text-[#41454d]">
-                <div className="w-3 h-3 border-2 border-[#9297a0] border-t-transparent rounded-full animate-spin" />
-                Verificando duplicados...
-              </div>
-            )}
-            {duplicateWarning && duplicateWarning.found && (
-              <div className="bg-[#f5e9d4] border border-[#e8d5b8] rounded-[8px] p-3 text-sm text-[#181d26] mt-2 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-[#aa2d00] shrink-0 mt-0.5" />
-                <span>Esta persona ya tiene {duplicateWarning.count} alerta{duplicateWarning.count !== 1 ? 's' : ''} registrada{duplicateWarning.count !== 1 ? 's' : ''} en: {duplicateWarning.entities.join(', ')}</span>
+
+            {/* Duplicate Warning Banner */}
+            {hasDuplicates && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 rounded-[10px] p-4 mt-2">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-amber-800">
+                      ⚠️ Se encontraron {duplicateAlerts.length} alerta{duplicateAlerts.length !== 1 ? 's' : ''} existente{duplicateAlerts.length !== 1 ? 's' : ''} para esta persona
+                    </p>
+
+                    {/* Matching alerts list (up to 3) */}
+                    <div className="mt-3 space-y-2">
+                      {duplicateAlerts.slice(0, 3).map((dupAlert) => (
+                        <div
+                          key={dupAlert.id}
+                          className="flex items-center gap-2.5 bg-white/60 rounded-[8px] px-3 py-2 text-xs border border-amber-100"
+                        >
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${getEntityDotColor(dupAlert.financialEntity?.code || '')}`} />
+                          <span className="font-medium text-[#181d26] truncate max-w-[120px]">
+                            {dupAlert.financialEntity?.name || '—'}
+                          </span>
+                          <Badge className={`rounded-[4px] text-[10px] px-1.5 py-0 h-4 ${
+                            dupAlert.profile === 'victima' ? 'bg-[#aa2d00] text-white' : 'bg-[#0a2e0e] text-white'
+                          }`}>
+                            {dupAlert.profile === 'victima' ? 'Víc' : 'Rec'}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className={`rounded-[4px] text-[10px] px-1.5 py-0 h-4 ${
+                              dupAlert.status === 'active'
+                                ? 'bg-[#0a2e0e]/10 text-[#0a2e0e]'
+                                : dupAlert.status === 'resolved'
+                                ? 'bg-[#f8fafc] text-[#41454d]'
+                                : 'bg-[#f5e9d4] text-[#181d26]'
+                            }`}
+                          >
+                            {statusLabels[dupAlert.status] || dupAlert.status}
+                          </Badge>
+                          <span className="text-[#9297a0] ml-auto whitespace-nowrap">
+                            {formatRelativeTime(dupAlert.createdAt)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Force create button */}
+                    <Button
+                      onClick={() => handleSubmit(true)}
+                      disabled={saving}
+                      variant="outline"
+                      className="mt-3 border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-[8px] h-8 text-xs font-medium"
+                    >
+                      {saving ? 'Guardando...' : 'Crear de todas formas'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -342,9 +461,9 @@ export function AlertFormDialog({ open, onOpenChange, editAlert, financialEntity
             Cancelar
           </Button>
           <Button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="bg-[#181d26] text-white rounded-[12px] px-6 py-3 h-auto font-medium hover:bg-[#0d1218]"
+            onClick={() => handleSubmit(false)}
+            disabled={saving || hasDuplicates}
+            className="bg-[#181d26] text-white rounded-[12px] px-6 py-3 h-auto font-medium hover:bg-[#0d1218] disabled:opacity-50"
           >
             {saving ? 'Guardando...' : editAlert ? 'Actualizar Alerta' : 'Crear Alerta'}
           </Button>

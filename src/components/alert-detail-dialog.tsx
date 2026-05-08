@@ -26,6 +26,8 @@ import {
   MessageSquare,
   Send,
   Loader2,
+  Bookmark,
+  BookmarkCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
@@ -63,6 +65,8 @@ interface AlertDetailDialogProps {
   onOpenChange: (open: boolean) => void
   alert: Alert | null
   onStatusChange?: () => void
+  bookmarkedIds?: Set<string>
+  onBookmarkToggle?: (alertId: string, bookmarked: boolean) => void
 }
 
 const idTypeLabels: Record<string, string> = {
@@ -101,8 +105,10 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
-export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }: AlertDetailDialogProps) {
+export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange, bookmarkedIds, onBookmarkToggle }: AlertDetailDialogProps) {
   const [changingStatus, setChangingStatus] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const { currentUser } = useAppStore()
 
   // Notes state
@@ -110,6 +116,13 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
   const [noteContent, setNoteContent] = useState('')
   const [loadingNotes, setLoadingNotes] = useState(false)
   const [submittingNote, setSubmittingNote] = useState(false)
+
+  // Sync bookmark state from parent
+  useEffect(() => {
+    if (alert && bookmarkedIds) {
+      setIsBookmarked(bookmarkedIds.has(alert.id))
+    }
+  }, [alert, bookmarkedIds])
 
   const fetchNotes = useCallback(async (alertId: string) => {
     setLoadingNotes(true)
@@ -136,6 +149,36 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
       setNoteContent('')
     }
   }, [open, alert?.id, fetchNotes])
+
+  const handleToggleBookmark = async () => {
+    if (!alert?.id || !currentUser?.id) return
+    setBookmarkLoading(true)
+    try {
+      const action = isBookmarked ? 'remove' : 'add'
+      const res = await fetch('/api/alerts/bookmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          alertId: alert.id,
+          action,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const newBookmarked = data.bookmarked
+        setIsBookmarked(newBookmarked)
+        onBookmarkToggle?.(alert.id, newBookmarked)
+        toast.success(newBookmarked ? 'Alerta marcada' : 'Marca removida')
+      } else {
+        toast.error('Error al cambiar marca')
+      }
+    } catch {
+      toast.error('Error al cambiar marca')
+    } finally {
+      setBookmarkLoading(false)
+    }
+  }
 
   const handleAddNote = async () => {
     if (!noteContent.trim() || !alert?.id || !currentUser?.id) return
@@ -219,14 +262,39 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] rounded-[12px] p-0 gap-0">
+      <DialogContent className="bg-white dark:bg-[#1a1d27] sm:max-w-[600px] rounded-[12px] p-0 gap-0">
         <DialogHeader className="px-8 pt-8 pb-0">
-          <DialogTitle className="text-xl font-medium text-[#181d26]">
-            Detalle de Alerta
-          </DialogTitle>
-          <DialogDescription className="text-sm text-[#41454d] mt-1">
-            Información completa de la alerta registrada
-          </DialogDescription>
+          <div className="flex items-start justify-between">
+            <div>
+              <DialogTitle className="text-xl font-medium text-[#181d26]">
+                Detalle de Alerta
+              </DialogTitle>
+              <DialogDescription className="text-sm text-[#41454d] mt-1">
+                Información completa de la alerta registrada
+              </DialogDescription>
+            </div>
+            {/* Bookmark button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleToggleBookmark}
+              disabled={bookmarkLoading}
+              className={`h-9 w-9 rounded-[8px] shrink-0 transition-colors ${
+                isBookmarked
+                  ? 'text-[#aa2d00] hover:text-[#aa2d00]/80 hover:bg-[#aa2d00]/5'
+                  : 'text-[#9297a0] hover:text-[#aa2d00] hover:bg-[#aa2d00]/5'
+              }`}
+              title={isBookmarked ? 'Quitar marca' : 'Marcar alerta'}
+            >
+              {bookmarkLoading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : isBookmarked ? (
+                <BookmarkCheck size={18} />
+              ) : (
+                <Bookmark size={18} />
+              )}
+            </Button>
+          </div>
         </DialogHeader>
 
         <motion.div
@@ -275,6 +343,13 @@ export function AlertDetailDialog({ open, onOpenChange, alert, onStatusChange }:
               {alert.status === 'dismissed' && <XCircle size={14} className="mr-1.5" />}
               {statusLabels[alert.status] || alert.status}
             </Badge>
+
+            {isBookmarked && (
+              <Badge className="rounded-[8px] px-3 py-1 text-sm font-medium bg-[#aa2d00]/10 text-[#aa2d00] border border-[#aa2d00]/20">
+                <BookmarkCheck size={14} className="mr-1" />
+                Marcada
+              </Badge>
+            )}
           </div>
 
           <Separator className="bg-[#dddddd]" />

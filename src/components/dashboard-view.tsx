@@ -35,6 +35,7 @@ import {
   Cell,
 } from 'recharts'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { useTheme } from 'next-themes'
 
 interface DashboardStats {
   totalUsers: number
@@ -105,6 +106,7 @@ function AnimatedStatNumber({ value }: { value: number }) {
 
 export function DashboardView() {
   const { setActiveTab, setCreateAlertOpen, currentUser } = useAppStore()
+  const { resolvedTheme } = useTheme()
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     todayAlerts: 0,
@@ -130,6 +132,14 @@ export function DashboardView() {
   const [chartRange, setChartRange] = useState<ChartRange>(7)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [heatmapAlerts, setHeatmapAlerts] = useState<{createdAt: string}[]>([])
+
+  const isDark = resolvedTheme === 'dark'
+  const chartGridStroke = isDark ? '#2d3140' : '#dddddd'
+  const chartAxisFill = isDark ? '#9ea3b0' : '#41454d'
+  const chartTooltipBg = isDark ? '#1a1d27' : '#fff'
+  const chartTooltipBorder = isDark ? '#2d3140' : '#dddddd'
+  const chartTooltipText = isDark ? '#e8eaf0' : '#181d26'
+  const chartLineColor = isDark ? '#e0522a' : '#aa2d00'
 
   const fetchStats = useCallback(async () => {
     try {
@@ -301,7 +311,7 @@ export function DashboardView() {
       textColor: 'text-[#181d26]',
       iconColor: 'text-[#aa2d00]',
       iconBg: 'bg-[#aa2d00]/10',
-      borderLeft: 'border-l-[4px] border-l-[#aa2d00]',
+      borderLeft: 'border-l-[4px] border-l-[#aa2d00] dark:border-l-[#e0522a]',
       trend: todayTrend,
       trendLabel: 'vs ayer',
     },
@@ -715,38 +725,38 @@ export function DashboardView() {
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#dddddd" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} vertical={false} />
                     <XAxis
                       dataKey="label"
-                      tick={{ fontSize: 11, fill: '#41454d' }}
+                      tick={{ fontSize: 11, fill: chartAxisFill }}
                       tickLine={false}
-                      axisLine={{ stroke: '#dddddd' }}
+                      axisLine={{ stroke: chartGridStroke }}
                       interval={chartRange <= 7 ? 0 : chartRange <= 30 ? 2 : 6}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#41454d' }}
+                      tick={{ fontSize: 11, fill: chartAxisFill }}
                       tickLine={false}
                       axisLine={false}
                       allowDecimals={false}
                     />
                     <RechartsTooltip
                       contentStyle={{
-                        backgroundColor: '#fff',
-                        border: '1px solid #dddddd',
+                        backgroundColor: chartTooltipBg,
+                        border: `1px solid ${chartTooltipBorder}`,
                         borderRadius: '8px',
                         fontSize: '12px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                       }}
-                      labelStyle={{ color: '#181d26', fontWeight: 500 }}
-                      itemStyle={{ color: '#aa2d00' }}
+                      labelStyle={{ color: chartTooltipText, fontWeight: 500 }}
+                      itemStyle={{ color: chartLineColor }}
                     />
                     <Line
                       type="monotone"
                       dataKey="count"
-                      stroke="#aa2d00"
+                      stroke={chartLineColor}
                       strokeWidth={2.5}
-                      dot={chartRange <= 30 ? { r: 3, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 } : false}
-                      activeDot={{ r: 5, fill: '#aa2d00', stroke: '#fff', strokeWidth: 2 }}
+                      dot={chartRange <= 30 ? { r: 3, fill: chartLineColor, stroke: isDark ? "#1a1d27" : '#fff', strokeWidth: 2 } : false}
+                      activeDot={{ r: 5, fill: chartLineColor, stroke: isDark ? "#1a1d27" : '#fff', strokeWidth: 2 }}
                       name="Alertas"
                     />
                   </LineChart>
@@ -842,7 +852,7 @@ export function DashboardView() {
                 <ArrowUpRight size={14} className="ml-1" />
               </Button>
             </div>
-            <div className="divide-y divide-[#dddddd]/60">
+            <div className="divide-y divide-[#dddddd]/60 dark:divide-[#2d3140]/60">
               {loading ? (
                 <div className="px-6 py-8 text-center">
                   <div className="animate-pulse space-y-3">
@@ -928,10 +938,10 @@ export function DashboardView() {
                     key={action.label}
                     onClick={action.action}
                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-[10px] hover:bg-[#f8fafc] transition-all duration-150 group text-left border-l-2 border-transparent ${
-                      action.label === 'Nueva Alerta' ? 'hover:border-l-[#aa2d00]' :
-                      action.label === 'Gestionar Usuarios' ? 'hover:border-l-[#181d26]' :
-                      action.label === 'Ver Últimas' ? 'hover:border-l-[#0a2e0e]' :
-                      action.label === 'Historial' ? 'hover:border-l-[#41454d]' : ''
+                      action.label === 'Nueva Alerta' ? 'hover:border-l-[#aa2d00] dark:border-l-[#e0522a] dark:hover:border-l-[#e0522a]' :
+                      action.label === 'Gestionar Usuarios' ? 'hover:border-l-[#181d26] dark:hover:border-l-[#2d3140]' :
+                      action.label === 'Ver Últimas' ? 'hover:border-l-[#0a2e0e] dark:hover:border-l-[#1a5c2a]' :
+                      action.label === 'Historial' ? 'hover:border-l-[#41454d] dark:hover:border-l-[#6b7080]' : ''
                     }`}
                   >
                     <div className={`${action.iconBg} rounded-[8px] p-2.5 transition-transform group-hover:scale-105`}>

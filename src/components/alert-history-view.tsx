@@ -16,7 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { AlertDetailDialog } from '@/components/alert-detail-dialog'
 import { AlertPrintReport } from '@/components/alert-print-report'
-import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays, Bell, CheckCircle2, X, CheckCircle, XCircle, FileText } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, ShieldAlert, DollarSign, CalendarDays, Bell, CheckCircle2, X, CheckCircle, XCircle, FileText, Bookmark, BookmarkCheck } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
@@ -109,6 +109,8 @@ export function AlertHistoryView() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [showPrintReport, setShowPrintReport] = useState(false)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
+  const [bookmarkLoadingId, setBookmarkLoadingId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchEntities = useCallback(async () => {
@@ -134,10 +136,24 @@ export function AlertHistoryView() {
     }
   }, [])
 
+  const fetchBookmarks = useCallback(async () => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/alerts/bookmark?userId=${currentUser.id}`)
+      if (res.ok) {
+        const ids = await res.json()
+        setBookmarkedIds(new Set(Array.isArray(ids) ? ids : []))
+      }
+    } catch (error) {
+      console.error('Error fetching bookmarks:', error)
+    }
+  }, [currentUser])
+
   useEffect(() => {
     fetchEntities()
     fetchAlerts()
-  }, [fetchEntities, fetchAlerts])
+    fetchBookmarks()
+  }, [fetchEntities, fetchAlerts, fetchBookmarks])
 
   // Focus search input when searchFocused is triggered
   useEffect(() => {
@@ -146,6 +162,53 @@ export function AlertHistoryView() {
       setSearchFocused(false)
     }
   }, [searchFocused, setSearchFocused])
+
+  const toggleBookmark = async (alertId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!currentUser) return
+    setBookmarkLoadingId(alertId)
+    try {
+      const isBookmarked = bookmarkedIds.has(alertId)
+      const res = await fetch('/api/alerts/bookmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          alertId,
+          action: isBookmarked ? 'remove' : 'add',
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setBookmarkedIds(prev => {
+          const next = new Set(prev)
+          if (data.bookmarked) {
+            next.add(alertId)
+          } else {
+            next.delete(alertId)
+          }
+          return next
+        })
+        toast.success(data.bookmarked ? 'Alerta marcada' : 'Marca removida')
+      }
+    } catch {
+      toast.error('Error al cambiar marca')
+    } finally {
+      setBookmarkLoadingId(null)
+    }
+  }
+
+  const handleBookmarkToggleFromDetail = (alertId: string, bookmarked: boolean) => {
+    setBookmarkedIds(prev => {
+      const next = new Set(prev)
+      if (bookmarked) {
+        next.add(alertId)
+      } else {
+        next.delete(alertId)
+      }
+      return next
+    })
+  }
 
   const baseFilteredAlerts = alerts
     .filter(a => filterEntityId === 'all' || a.financialEntityId === filterEntityId)
@@ -255,6 +318,8 @@ export function AlertHistoryView() {
   const isViewer = currentUser?.role === 'viewer'
 
   const hasActiveFilters = filterEntityId !== 'all' || filterProfile !== 'all' || filterStatus !== 'all'
+
+  const colSpan = isViewer ? 11 : 12
 
   return (
     <div>
@@ -368,6 +433,7 @@ export function AlertHistoryView() {
         <Table>
           <TableHeader>
             <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
+              <TableHead className="w-[32px] px-2" />
               {!isViewer && (
                 <TableHead className="w-[40px] px-3">
                   <Checkbox
@@ -383,7 +449,7 @@ export function AlertHistoryView() {
                   />
                 </TableHead>
               )}
-              <TableHead className="w-[20px] px-2" />
+              <TableHead className="w-[20px] px-1" />
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Entidad</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
@@ -398,8 +464,9 @@ export function AlertHistoryView() {
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i} className={`border-l-2 border-l-transparent ${i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
+                  <TableCell className="px-2"><Skeleton className="h-4 w-4" /></TableCell>
                   <TableCell className="px-3"><Skeleton className="h-4 w-4" /></TableCell>
-                  <TableCell className="px-2"><Skeleton className="h-2.5 w-2.5 rounded-full" /></TableCell>
+                  <TableCell className="px-1"><Skeleton className="h-2.5 w-2.5 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
@@ -411,7 +478,7 @@ export function AlertHistoryView() {
                 </TableRow>
               ))
             ) : paginatedAlerts.length === 0 ? (
-              <EmptyState searchQuery={searchQuery} hasFilters={hasActiveFilters} colSpan={isViewer ? 10 : 11} />
+              <EmptyState searchQuery={searchQuery} hasFilters={hasActiveFilters} colSpan={colSpan} />
             ) : (
               paginatedAlerts.map((alert, idx) => (
                 <>
@@ -427,6 +494,26 @@ export function AlertHistoryView() {
                         style={{ height: expandedRow === alert.id ? '100%' : '0%', marginTop: expandedRow === alert.id ? '0' : '50%' }}
                       />
                     </td>
+                    <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={(e) => toggleBookmark(alert.id, e)}
+                        disabled={bookmarkLoadingId === alert.id}
+                        className={`h-7 w-7 rounded-[6px] flex items-center justify-center transition-colors ${
+                          bookmarkedIds.has(alert.id)
+                            ? 'text-[#aa2d00] hover:bg-[#aa2d00]/5'
+                            : 'text-[#dddddd] hover:text-[#aa2d00] hover:bg-[#aa2d00]/5 opacity-0 group-hover:opacity-100'
+                        } ${bookmarkedIds.has(alert.id) ? 'opacity-100' : ''}`}
+                        title={bookmarkedIds.has(alert.id) ? 'Quitar marca' : 'Marcar alerta'}
+                      >
+                        {bookmarkLoadingId === alert.id ? (
+                          <div className="w-3.5 h-3.5 border-2 border-[#9297a0] border-t-transparent rounded-full animate-spin" />
+                        ) : bookmarkedIds.has(alert.id) ? (
+                          <BookmarkCheck size={16} />
+                        ) : (
+                          <Bookmark size={16} />
+                        )}
+                      </button>
+                    </TableCell>
                     {!isViewer && (
                       <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
@@ -436,7 +523,7 @@ export function AlertHistoryView() {
                         />
                       </TableCell>
                     )}
-                    <TableCell className="px-2">
+                    <TableCell className="px-1">
                       <div className={`w-2.5 h-2.5 rounded-full ${getSeverityDot(getSeverity(alert))}`} />
                     </TableCell>
                     <TableCell className="text-[#41454d] text-sm">{alert.financialEntity?.name || '—'}</TableCell>
@@ -489,7 +576,7 @@ export function AlertHistoryView() {
                         transition={{ duration: 0.2, ease: 'easeOut' }}
                         className="bg-[#f8fafc]/80 border-b border-[#dddddd]"
                       >
-                        <td colSpan={isViewer ? 10 : 11} className="px-6 py-3">
+                        <td colSpan={colSpan} className="px-6 py-3">
                           <motion.div
                             initial={{ y: -5, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -612,6 +699,8 @@ export function AlertHistoryView() {
         open={!!detailAlert}
         onOpenChange={(open) => !open && setDetailAlert(null)}
         alert={detailAlert}
+        bookmarkedIds={bookmarkedIds}
+        onBookmarkToggle={handleBookmarkToggleFromDetail}
       />
 
       {showPrintReport && (

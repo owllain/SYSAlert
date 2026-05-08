@@ -27,7 +27,7 @@ interface Alert {
 }
 
 const entityColors: Record<string, string> = { BP: '#aa2d00', BCR: '#0a2e0e', BNC: '#181d26' }
-const entityBorderColors: Record<string, string> = { BP: 'border-l-[#aa2d00]', BCR: 'border-l-[#0a2e0e]', BNC: 'border-l-[#181d26]' }
+const entityBorderColors: Record<string, string> = { BP: 'border-l-[#aa2d00] dark:border-l-[#e0522a]', BCR: 'border-l-[#0a2e0e]', BNC: 'border-l-[#181d26]' }
 
 interface ChartData {
   name: string

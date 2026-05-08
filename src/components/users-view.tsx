@@ -252,7 +252,7 @@ export function UsersView() {
               </TableRow>
             ) : (
               filteredUsers.map((user, idx) => (
-                <TableRow key={user.id} className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/50 transition-colors cursor-default border-l-2 border-l-transparent hover:border-l-[#aa2d00]/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
+                <TableRow key={user.id} className={`border-b border-[#dddddd] last:border-0 hover:bg-[#f8fafc]/50 transition-colors cursor-default border-l-2 border-l-transparent hover:border-l-[#aa2d00] dark:hover:border-l-[#e0522a]/30 dark:border-l-[#e0522a]/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div

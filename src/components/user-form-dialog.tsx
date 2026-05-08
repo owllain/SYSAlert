@@ -130,7 +130,7 @@ export function UserFormDialog({ open, onOpenChange, editUser, entities, onSaved
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] rounded-[12px] p-0 gap-0">
+      <DialogContent className="bg-white dark:bg-[#1a1d27] sm:max-w-[560px] rounded-[12px] p-0 gap-0">
         <DialogHeader className="px-8 pt-8 pb-0">
           <DialogTitle className="text-xl font-medium text-[#181d26]">
             {editUser ? 'Editar Usuario' : 'Agregar Usuario'}

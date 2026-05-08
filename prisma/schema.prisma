@@ -30,6 +30,7 @@ model User {
   alerts           Alert[]
   auditLogs        AuditLog[]
   notes            Note[]
+  bookmarks        BookmarkedAlert[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 }
@@ -59,6 +60,7 @@ model Alert {
   financialEntityId String
   financialEntity   FinancialEntity @relation(fields: [financialEntityId], references: [id])
   notes             Note[]
+  bookmarkedBy      BookmarkedAlert[]
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 }
@@ -72,4 +74,15 @@ model Note {
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model BookmarkedAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  alertId   String
+  alert     Alert    @relation(fields: [alertId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, alertId])
 }

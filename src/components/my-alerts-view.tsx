@@ -33,6 +33,8 @@ import {
   ArrowRight,
   ShieldAlert,
   DollarSign,
+  Bookmark,
+  BookmarkCheck,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
@@ -82,10 +84,10 @@ function getSeverityDot(severity: 'high' | 'medium' | 'low') {
   }
 }
 
-function EmptyState({ searchQuery }: { searchQuery: string }) {
+function EmptyState({ searchQuery, filterBookmarks }: { searchQuery: string; filterBookmarks: boolean }) {
   return (
     <TableRow>
-      <TableCell colSpan={9} className="py-0 border-0">
+      <TableCell colSpan={10} className="py-0 border-0">
         <div className="flex items-center justify-center py-12">
           <div className="border-2 border-dashed border-[#dddddd] rounded-[12px] p-8 text-center max-w-md">
             <motion.div
@@ -93,13 +95,19 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <ShieldAlert size={28} className="text-[#aa2d00]/60" />
+              {filterBookmarks ? (
+                <Bookmark size={28} className="text-[#aa2d00]/60" />
+              ) : (
+                <ShieldAlert size={28} className="text-[#aa2d00]/60" />
+              )}
             </motion.div>
             <p className="font-medium text-[#181d26] text-base">
-              {searchQuery ? 'No se encontraron alertas' : 'No tiene alertas registradas'}
+              {filterBookmarks ? 'No hay alertas marcadas' : searchQuery ? 'No se encontraron alertas' : 'No tiene alertas registradas'}
             </p>
             <p className="text-sm text-[#41454d] mt-1">
-              {searchQuery
+              {filterBookmarks
+                ? 'Marque alertas como importantes para verlas aquí'
+                : searchQuery
                 ? 'Intente con otro término de búsqueda'
                 : 'Las alertas que cree aparecerán aquí'}
             </p>
@@ -121,6 +129,9 @@ export function MyAlertsView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [changingStatus, setChangingStatus] = useState<string | null>(null)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
+  const [bookmarkFilter, setBookmarkFilter] = useState(false)
+  const [bookmarkLoadingId, setBookmarkLoadingId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const fetchAlerts = useCallback(async () => {
@@ -136,9 +147,23 @@ export function MyAlertsView() {
     }
   }, [currentUser])
 
+  const fetchBookmarks = useCallback(async () => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/alerts/bookmark?userId=${currentUser.id}`)
+      if (res.ok) {
+        const ids = await res.json()
+        setBookmarkedIds(new Set(Array.isArray(ids) ? ids : []))
+      }
+    } catch (error) {
+      console.error('Error fetching bookmarks:', error)
+    }
+  }, [currentUser])
+
   useEffect(() => {
     fetchAlerts()
-  }, [fetchAlerts])
+    fetchBookmarks()
+  }, [fetchAlerts, fetchBookmarks])
 
   // Open create alert dialog when createAlertOpen is triggered
   useEffect(() => {
@@ -157,17 +182,68 @@ export function MyAlertsView() {
     }
   }, [searchFocused, setSearchFocused])
 
+  const toggleBookmark = async (alertId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!currentUser) return
+    setBookmarkLoadingId(alertId)
+    try {
+      const isBookmarked = bookmarkedIds.has(alertId)
+      const res = await fetch('/api/alerts/bookmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          alertId,
+          action: isBookmarked ? 'remove' : 'add',
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setBookmarkedIds(prev => {
+          const next = new Set(prev)
+          if (data.bookmarked) {
+            next.add(alertId)
+          } else {
+            next.delete(alertId)
+          }
+          return next
+        })
+        toast.success(data.bookmarked ? 'Alerta marcada' : 'Marca removida')
+      }
+    } catch {
+      toast.error('Error al cambiar marca')
+    } finally {
+      setBookmarkLoadingId(null)
+    }
+  }
+
+  const handleBookmarkToggleFromDetail = (alertId: string, bookmarked: boolean) => {
+    setBookmarkedIds(prev => {
+      const next = new Set(prev)
+      if (bookmarked) {
+        next.add(alertId)
+      } else {
+        next.delete(alertId)
+      }
+      return next
+    })
+  }
+
   const filteredAlerts = useMemo(() => {
-    if (!searchQuery.trim()) return alerts
+    let result = alerts
+    if (bookmarkFilter) {
+      result = result.filter(a => bookmarkedIds.has(a.id))
+    }
+    if (!searchQuery.trim()) return result
     const q = searchQuery.toLowerCase().trim()
-    return alerts.filter(
+    return result.filter(
       (a) =>
         a.personName.toLowerCase().includes(q) ||
         a.personId.toLowerCase().includes(q) ||
         a.description.toLowerCase().includes(q) ||
         (a.financialEntity?.name || '').toLowerCase().includes(q)
     )
-  }, [alerts, searchQuery])
+  }, [alerts, searchQuery, bookmarkFilter, bookmarkedIds])
 
   const handleDelete = async () => {
     if (!deleteAlert) return
@@ -223,6 +299,10 @@ export function MyAlertsView() {
     setExpandedRow(expandedRow === alert.id ? null : alert.id)
   }
 
+  const bookmarkCount = useMemo(() => {
+    return alerts.filter(a => bookmarkedIds.has(a.id)).length
+  }, [alerts, bookmarkedIds])
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -247,8 +327,8 @@ export function MyAlertsView() {
         )}
       </div>
 
-      {/* Search Bar */}
-      <div className="mb-6">
+      {/* Search Bar + Bookmark Filter */}
+      <div className="mb-6 flex items-center gap-3">
         <div className="relative w-full sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#41454d]" />
           <Input
@@ -259,13 +339,36 @@ export function MyAlertsView() {
             className="pl-9 h-10 rounded-[8px] border-[#dddddd] bg-white focus:border-[#181d26] focus:ring-[#181d26]/10 text-sm"
           />
         </div>
+        <button
+          onClick={() => setBookmarkFilter(!bookmarkFilter)}
+          className={`flex items-center gap-2 px-4 h-10 rounded-[20px] text-sm font-medium transition-all border whitespace-nowrap ${
+            bookmarkFilter
+              ? 'bg-[#aa2d00] text-white border-[#aa2d00]'
+              : 'bg-white text-[#41454d] border-[#dddddd] hover:border-[#aa2d00]/40 hover:text-[#aa2d00]'
+          }`}
+        >
+          {bookmarkFilter ? (
+            <BookmarkCheck size={16} />
+          ) : (
+            <Bookmark size={16} />
+          )}
+          Mis Marcadores
+          {bookmarkCount > 0 && (
+            <span className={`text-xs px-1.5 py-0.5 rounded-[4px] ${
+              bookmarkFilter ? 'bg-white/20' : 'bg-[#aa2d00]/10 text-[#aa2d00]'
+            }`}>
+              {bookmarkCount}
+            </span>
+          )}
+        </button>
       </div>
 
       <div className="bg-white border border-[#dddddd] rounded-[12px] overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="border-b border-[#dddddd] bg-[#f8fafc]/80">
-              <TableHead className="w-[20px] px-2" />
+              <TableHead className="w-[32px] px-2" />
+              <TableHead className="w-[20px] px-1" />
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Perfil</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider">Persona</TableHead>
               <TableHead className="text-[#41454d] font-medium text-xs uppercase tracking-wider hidden md:table-cell">Identificación</TableHead>
@@ -282,7 +385,8 @@ export function MyAlertsView() {
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i} className={`border-l-2 border-l-transparent ${i % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}`}>
-                  <TableCell className="px-2"><Skeleton className="h-2.5 w-2.5 rounded-full" /></TableCell>
+                  <TableCell className="px-2"><Skeleton className="h-4 w-4" /></TableCell>
+                  <TableCell className="px-1"><Skeleton className="h-2.5 w-2.5 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
@@ -294,7 +398,7 @@ export function MyAlertsView() {
                 </TableRow>
               ))
             ) : filteredAlerts.length === 0 ? (
-              <EmptyState searchQuery={searchQuery} />
+              <EmptyState searchQuery={searchQuery} filterBookmarks={bookmarkFilter} />
             ) : (
               filteredAlerts.map((alert, idx) => (
                 <>
@@ -310,7 +414,27 @@ export function MyAlertsView() {
                         style={{ height: expandedRow === alert.id ? '100%' : '0%', marginTop: expandedRow === alert.id ? '0' : '50%' }}
                       />
                     </td>
-                    <TableCell className="px-2">
+                    <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={(e) => toggleBookmark(alert.id, e)}
+                        disabled={bookmarkLoadingId === alert.id}
+                        className={`h-7 w-7 rounded-[6px] flex items-center justify-center transition-colors ${
+                          bookmarkedIds.has(alert.id)
+                            ? 'text-[#aa2d00] hover:bg-[#aa2d00]/5'
+                            : 'text-[#dddddd] hover:text-[#aa2d00] hover:bg-[#aa2d00]/5 opacity-0 group-hover:opacity-100'
+                        } ${bookmarkedIds.has(alert.id) ? 'opacity-100' : ''}`}
+                        title={bookmarkedIds.has(alert.id) ? 'Quitar marca' : 'Marcar alerta'}
+                      >
+                        {bookmarkLoadingId === alert.id ? (
+                          <div className="w-3.5 h-3.5 border-2 border-[#9297a0] border-t-transparent rounded-full animate-spin" />
+                        ) : bookmarkedIds.has(alert.id) ? (
+                          <BookmarkCheck size={16} />
+                        ) : (
+                          <Bookmark size={16} />
+                        )}
+                      </button>
+                    </TableCell>
+                    <TableCell className="px-1">
                       <div className={`w-2.5 h-2.5 rounded-full ${getSeverityDot(getSeverity(alert))}`} />
                     </TableCell>
                     <TableCell>
@@ -455,7 +579,7 @@ export function MyAlertsView() {
                         transition={{ duration: 0.2, ease: 'easeOut' }}
                         className="bg-[#f8fafc]/80 border-b border-[#dddddd]"
                       >
-                        <td colSpan={currentUser?.role !== 'viewer' ? 9 : 8} className="px-6 py-3">
+                        <td colSpan={currentUser?.role !== 'viewer' ? 10 : 9} className="px-6 py-3">
                           <motion.div
                             initial={{ y: -5, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
@@ -519,6 +643,8 @@ export function MyAlertsView() {
         onOpenChange={(open) => !open && setDetailAlert(null)}
         alert={detailAlert}
         onStatusChange={fetchAlerts}
+        bookmarkedIds={bookmarkedIds}
+        onBookmarkToggle={handleBookmarkToggleFromDetail}
       />
     </div>
   )
